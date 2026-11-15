@@ -1,0 +1,68 @@
+<document ids="title" names="title" source="test data" title="Title">
+    <title>
+        Title
+    <subtitle ids="subtitle" names="subtitle">
+        Subtitle
+    <docinfo>
+        <author>
+            Me
+        <authors>
+            <author>
+                A
+            <author>
+                B, C
+        <date>
+            2024-01-02
+        <version>
+            1. Jan
+        <field classes="status">
+            <field_name>
+                Status
+            <field_body>
+                <system_message level="2" line="13" source="test data" type="WARNING">
+                    <paragraph>
+                        Cannot extract empty bibliographic field "Status".
+        <field classes="abstract">
+            <field_name>
+                Abstract
+            <field_body>
+                <paragraph>
+                    Again.
+                <system_message level="2" line="15" source="test data" type="WARNING">
+                    <paragraph>
+                        There can only be one "Abstract" field.
+        <field classes="address">
+            <field_name>
+                Address
+            <field_body>
+                <bullet_list bullet="-">
+                    <list_item>
+                        <paragraph>
+                            x
+                    <list_item>
+                        <paragraph>
+                            y
+                <system_message level="2" line="16" source="test data" type="WARNING">
+                    <paragraph>
+                        Bibliographic field "Address"
+                        must contain a single <paragraph>, not a <bullet_list>.
+        <field classes="custom-field">
+            <field_name>
+                Custom Field
+            <field_body>
+                <paragraph>
+                    value
+        <revision>
+            1.2
+    <topic classes="dedication">
+        <title>
+            Dedication
+        <paragraph>
+            For you.
+    <topic classes="abstract">
+        <title>
+            Abstract
+        <paragraph>
+            Some text.
+    <paragraph>
+        Body.

@@ -976,7 +976,9 @@ fn class(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Nod
     );
     p.span = call.span;
     p.attributes.set(RAW, call.block_text.clone());
-    if let Some(line) = doc.current_line {
+    if let Some(line) = doc.current_line
+        && doc.in_document()
+    {
         p.attributes.set(LINE, line as i64);
     }
     doc.note_pending(&mut p, 210);

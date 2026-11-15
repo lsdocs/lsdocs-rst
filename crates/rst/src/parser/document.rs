@@ -171,13 +171,15 @@ impl Document {
             self.close();
         }
         let mut root = self.stack.pop().unwrap().element;
-        if transforms {
-            super::transforms::apply(&mut self, &mut root);
-        }
         for (key, name) in std::mem::take(&mut self.deferred_dupnames) {
             if let Some(node) = find_in(&mut root, key) {
                 dupname(node, &name);
+            } else if let Some(copy) = self.notes.snapshots.get_mut(&key) {
+                dupname(copy, &name);
             }
+        }
+        if transforms {
+            super::transforms::apply(&mut self, &mut root);
         }
         strip_hidden(&mut root);
         root
@@ -317,6 +319,13 @@ impl Document {
         }
     }
 
+    /// Whether the current parent is in the document tree, not in an
+    /// element still detached (docutils sets the line of a node added to
+    /// such a parent).
+    pub(crate) fn in_document(&self) -> bool {
+        self.stack.iter().skip(1).all(|f| f.at.is_some())
+    }
+
     /// The number of sections among the current parent and its attached
     /// ancestors (docutils' `len(node.section_hierarchy())`).
     pub(crate) fn section_depth(&self) -> usize {
@@ -439,9 +448,21 @@ impl Document {
         msgnode: Option<MsgNode>,
         line: Option<usize>,
     ) -> String {
+        self.set_id_prefixed(node, msgnode, line, None)
+    }
+
+    /// `set_id`, with a prefix for a generated id other than the tag name
+    /// (docutils' `suggested_prefix`).
+    pub(crate) fn set_id_prefixed(
+        &mut self,
+        node: &mut Element,
+        msgnode: Option<MsgNode>,
+        line: Option<usize>,
+        suggested_prefix: Option<&str>,
+    ) -> String {
         let key = self.key(node);
         if node.attributes.get_list("ids").is_empty() {
-            let id = self.create_id(node);
+            let id = self.create_id(node, suggested_prefix);
             node.attributes.push("ids", id);
         }
         let ids = node.attributes.get_list("ids").to_vec();
@@ -466,7 +487,7 @@ impl Document {
 
     /// A new id for `node` (docutils' `document.create_id`, with the
     /// default `id_prefix` and `auto_id_prefix` settings).
-    fn create_id(&mut self, node: &Element) -> String {
+    fn create_id(&mut self, node: &Element, suggested_prefix: Option<&str>) -> String {
         let mut base_id = String::new();
         for name in node.attributes.get_list("names") {
             base_id = make_id(name);
@@ -482,7 +503,10 @@ impl Document {
         {
             format!("{}-", make_id(first))
         } else {
-            format!("{}-", make_id(node.kind.tag()))
+            match suggested_prefix {
+                Some(p) => format!("{p}-"),
+                None => format!("{}-", make_id(node.kind.tag())),
+            }
         };
         loop {
             let n = self.id_counter.entry(prefix.clone()).or_insert(0);
@@ -698,6 +722,19 @@ impl Document {
                 map.entry(name).or_default().push(key);
                 self.note_refname(node);
             }
+        }
+        // docutils' transforms still change a noted node that never reaches
+        // the tree, so they work on a copy of it.
+        self.notes.snapshots.insert(key, node.clone());
+    }
+
+    /// Refreshes the copy of a noted element (see `note_footnote_kind`)
+    /// once it is complete.
+    pub(crate) fn update_snapshot(&mut self, node: &Element) {
+        if let Some(AttrValue::Int(key)) = node.attributes.get(KEY)
+            && let Some(copy) = self.notes.snapshots.get_mut(key)
+        {
+            *copy = node.clone();
         }
     }
 

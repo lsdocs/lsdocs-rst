@@ -1,0 +1,100 @@
+<document source="test data">
+    <comment xml:space="preserve">
+        comment
+    <field_list>
+        <field>
+            <field_name>
+                Authors
+            <field_body>
+                <bullet_list bullet="-">
+                    <list_item>
+                        <paragraph>
+                            One
+                    <list_item>
+                        <paragraph>
+                            Two
+        <field>
+            <field_name>
+                Author
+            <field_body>
+                <enumerated_list enumtype="upperalpha" prefix="" suffix=".">
+                    <list_item>
+                        <paragraph>
+                            Einstein
+        <field>
+            <field_name>
+                Organization
+            <field_body>
+                <paragraph>
+                    <emphasis>
+                        Org
+                     and co
+        <field>
+            <field_name>
+                Contact
+            <field_body>
+                <paragraph>
+                    me, myself
+        <field>
+            <field_name>
+                Copyright
+            <field_body>
+                <paragraph>
+                    one
+                <paragraph>
+                    two
+        <field>
+            <field_name>
+                Authors
+            <field_body>
+                <paragraph>
+                    X; Y; Z
+        <field>
+            <field_name>
+                Authors
+            <field_body>
+                <paragraph>
+                    First
+                <comment xml:space="preserve">
+                    note
+                <paragraph>
+                    Second
+        <field>
+            <field_name>
+                Authors
+            <field_body>
+                <bullet_list bullet="-">
+                    <list_item>
+        <field>
+            <field_name>
+                Date
+            <field_body>
+                <paragraph>
+                    $RCSfile: file.txt,v $
+        <field>
+            <field_name>
+                Status
+            <field_body>
+                <paragraph>
+                    $Id: 1 $ and $Rev: 2 $
+        <field>
+            <field_name>
+                Version
+            <field_body>
+                <enumerated_list enumtype="arabic" prefix="" suffix=".">
+                    <list_item>
+                        <paragraph>
+                            x
+                    <list_item>
+                        <paragraph>
+                            y
+        <field>
+            <field_name>
+                Version
+            <field_body>
+                <enumerated_list enumtype="arabic" prefix="" suffix=".">
+                    <list_item>
+                        <paragraph>
+                            one
+    <paragraph>
+        Text.

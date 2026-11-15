@@ -7,6 +7,9 @@
 //! references point to them by id. A few transforms do put their
 //! messages in the tree, as docutils does.
 
+mod frontmatter;
+mod parts;
+
 use std::collections::{HashMap, HashSet};
 
 use super::document::{At, Document, ERROR, KEY, Key, LINE, MsgNode, RAW, WARNING, find_in, fixed};
@@ -136,8 +139,26 @@ fn problematic(doc: &mut Document, raw: &str, msgid: &str) -> Element {
     prb
 }
 
-/// Replaces the references `keys` (those still present and passing
-/// `skip`) with problematic elements linked to a new error `message`.
+/// Runs `f` on the element with `key`: in the tree, or else on the copy of
+/// a noted element that never reached it, which docutils' transforms
+/// still change (the copy keeps the changes).
+fn with_node<R>(
+    doc: &mut Document,
+    root: &mut Element,
+    key: Key,
+    f: impl FnOnce(&mut Document, &mut Element) -> R,
+) -> Option<R> {
+    if let Some(e) = find_in(root, key) {
+        return Some(f(doc, e));
+    }
+    let mut copy = doc.notes.snapshots.remove(&key)?;
+    let result = f(doc, &mut copy);
+    doc.notes.snapshots.insert(key, copy);
+    Some(result)
+}
+
+/// Replaces the references `keys` (those not passing `skip`) with
+/// problematic elements linked to a new error `message`.
 fn report_problem(
     doc: &mut Document,
     root: &mut Element,
@@ -148,13 +169,14 @@ fn report_problem(
     let mut msg = doc.message(ERROR, message, Vec::new(), At::Exact(None));
     let msgid = doc.set_id(&mut msg, None, None);
     for &key in keys {
-        let Some(e) = get(root, key) else {
+        let Some((skipped, raw)) = with_node(doc, root, key, |_, e| {
+            (skip(e), str_attr(e, RAW).unwrap_or_default())
+        }) else {
             continue;
         };
-        if skip(e) {
+        if skipped {
             continue;
         }
-        let raw = str_attr(e, RAW).unwrap_or_default();
         let mut prb = problematic(doc, &raw, &msgid);
         let prbid = doc.set_id(&mut prb, None, None);
         msg.attributes.push("backrefs", prbid);
@@ -171,7 +193,7 @@ pub(crate) fn apply(doc: &mut Document, root: &mut Element) {
         queue.push((priority, i, Some(key)));
     }
     let base = queue.len();
-    for (i, priority) in [220, 260, 440, 460, 620, 640, 660, 830, 850]
+    for (i, priority) in [220, 260, 320, 340, 440, 460, 620, 640, 660, 830, 850]
         .into_iter()
         .enumerate()
     {
@@ -181,9 +203,14 @@ pub(crate) fn apply(doc: &mut Document, root: &mut Element) {
     for (priority, _, pending) in queue {
         match (priority, pending) {
             (210, Some(key)) => class_attribute(doc, root, key),
+            (540, Some(key)) => parts::target_notes(doc, root, key),
+            (710, Some(key)) => parts::sectnum(doc, root, key),
+            (720, Some(key)) => parts::contents(doc, root, key),
             (_, Some(_)) => {}
             (220, None) => substitutions(doc, root),
             (260, None) => propagate_targets(doc, root),
+            (320, None) => frontmatter::doc_title(doc, root),
+            (340, None) => frontmatter::doc_info(doc, root),
             (440, None) => anonymous_hyperlinks(doc, root),
             (460, None) => indirect_hyperlinks(doc, root),
             (620, None) => footnotes(doc, root),
@@ -236,12 +263,18 @@ fn class_attribute(doc: &mut Document, root: &mut Element, key: Key) {
         _ => None,
     };
     let directive = str_attr(&pending, ".details.directive").unwrap_or_default();
-    let error = doc.message(
+    let mut error = doc.message(
         ERROR,
         &format!("No suitable element following \"{directive}\" directive"),
         vec![fixed(Kind::LiteralBlock, &raw, None).into()],
+        // Without a line, docutils' reporter takes where the top-level
+        // parser stopped.
         At::Top(line),
     );
+    if !has(&error, "line") {
+        // docutils passes `line=None`, which pseudo-XML prints as "True".
+        error.attributes.set("line", "True");
+    }
     replace_self(root, key, vec![error.into()]);
 }
 
@@ -1023,8 +1056,47 @@ const SYMBOLS: [&str; 10] = [
 /// Numbers auto-numbered footnotes, assigns symbols, and links footnote
 /// and citation references (docutils' `references.Footnotes`).
 fn footnotes(doc: &mut Document, root: &mut Element) {
-    let mut labels: Vec<String> = Vec::new();
-    // Auto-numbered footnotes.
+    let labels = number_footnotes(doc, root);
+    number_footnote_references(doc, root, &labels);
+    symbolize_footnotes(doc, root);
+    let lists = [
+        (doc.notes.footnotes.clone(), doc.notes.footnote_refs.clone()),
+        (doc.notes.citations.clone(), doc.notes.citation_refs.clone()),
+    ];
+    for (notes, refs) in lists {
+        for nk in notes {
+            let Some((id, names)) = with_node(doc, root, nk, |_, n| {
+                (
+                    first_id(n).unwrap_or_default(),
+                    n.attributes.get_list("names").to_vec(),
+                )
+            }) else {
+                continue;
+            };
+            for label in names {
+                for &rk in refs.get(&label).map(Vec::as_slice).unwrap_or(&[]) {
+                    let rid = with_node(doc, root, rk, |_, r| {
+                        if resolved(r) {
+                            return None;
+                        }
+                        r.attributes.remove("refname");
+                        r.attributes.set("refid", id.clone());
+                        set_resolved(r);
+                        Some(first_id(r).unwrap_or_default())
+                    });
+                    if let Some(Some(rid)) = rid {
+                        with_node(doc, root, nk, |_, n| n.attributes.push("backrefs", rid));
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Labels auto-numbered footnotes and the references to labelled ones;
+/// returns the labels of the unlabelled ones.
+fn number_footnotes(doc: &mut Document, root: &mut Element) -> Vec<String> {
+    let mut labels = Vec::new();
     let mut number = 1;
     for fkey in doc.notes.autofootnotes.clone() {
         let label = loop {
@@ -1034,102 +1106,114 @@ fn footnotes(doc: &mut Document, root: &mut Element) {
                 break label;
             }
         };
-        let Some(f) = get(root, fkey) else {
+        let Some((names, fid)) = with_node(doc, root, fkey, |_, f| {
+            f.children.insert(
+                0,
+                Element::new(Kind::Label)
+                    .with_child(Text::new(label.clone(), None))
+                    .into(),
+            );
+            (
+                f.attributes.get_list("names").to_vec(),
+                first_id(f).unwrap_or_default(),
+            )
+        }) else {
             continue;
         };
-        f.children.insert(
-            0,
-            Element::new(Kind::Label)
-                .with_child(Text::new(label.clone(), None))
-                .into(),
-        );
-        let names = f.attributes.get_list("names").to_vec();
-        let fid = first_id(f).unwrap_or_default();
         for name in &names {
-            for rk in doc
+            let refs = doc
                 .notes
                 .footnote_refs
                 .get(name)
                 .cloned()
-                .unwrap_or_default()
-            {
-                let Some(r) = get(root, rk) else {
-                    continue;
-                };
-                r.children.push(Text::new(label.clone(), None).into());
-                r.attributes.remove("refname");
-                r.attributes.set("refid", fid.clone());
-                let rid = first_id(r).unwrap_or_default();
-                doc.note_refid(r);
-                if let Some(e) = get(root, rk) {
-                    set_resolved(e);
-                }
-                if let Some(f) = get(root, fkey) {
-                    f.attributes.push("backrefs", rid);
+                .unwrap_or_default();
+            for rk in refs {
+                let rid = with_node(doc, root, rk, |doc, r| {
+                    r.children.push(Text::new(label.clone(), None).into());
+                    r.attributes.remove("refname");
+                    r.attributes.set("refid", fid.clone());
+                    let rid = first_id(r).unwrap_or_default();
+                    doc.note_refid(r);
+                    set_resolved(r);
+                    rid
+                });
+                if let Some(rid) = rid {
+                    with_node(doc, root, fkey, |_, f| f.attributes.push("backrefs", rid));
                 }
             }
         }
-        let Some(f) = get(root, fkey) else {
-            return;
-        };
-        if f.attributes.get_list("names").is_empty() && f.attributes.get_list("dupnames").is_empty()
-        {
-            f.attributes.push("names", label.clone());
-            doc.note_explicit_target(f, Some(MsgNode::Itself), None);
+        let unlabelled = with_node(doc, root, fkey, |doc, f| {
+            let unnamed = f.attributes.get_list("names").is_empty()
+                && f.attributes.get_list("dupnames").is_empty();
+            if unnamed {
+                f.attributes.push("names", label.clone());
+                doc.note_explicit_target(f, Some(MsgNode::Itself), None);
+            }
+            unnamed
+        });
+        if unlabelled == Some(true) {
             labels.push(label);
         }
     }
-    // References to unlabelled auto-numbered footnotes.
+    labels
+}
+
+/// Labels the references to unlabelled auto-numbered footnotes, in order.
+fn number_footnote_references(doc: &mut Document, root: &mut Element, labels: &[String]) {
     let refs = doc.notes.autofootnote_refs.clone();
     let mut i = 0;
-    for (n, &rk) in refs.iter().enumerate() {
-        let Some(r) = get(root, rk) else {
+    for &rk in &refs {
+        let Some(done) = with_node(doc, root, rk, |_, r| resolved(r) || has(r, "refid")) else {
             continue;
         };
-        if resolved(r) || has(r, "refid") {
+        if done {
             continue;
         }
         let Some(label) = labels.get(i).cloned() else {
             let count = labels.len();
             let s = if count > 1 { "s" } else { "" };
+            // docutils restarts at the number of labels used.
             report_problem(
                 doc,
                 root,
                 &format!(
                     "Too many autonumbered footnote references: only {count} corresponding footnote{s} available."
                 ),
-                &refs[n..],
+                &refs[i..],
                 &|e| resolved(e) || has(e, "refname"),
             );
             break;
         };
-        r.children.push(Text::new(label.clone(), None).into());
         let id = doc
             .nameids
             .get(&label)
             .cloned()
             .flatten()
             .unwrap_or_default();
-        r.attributes.set("refid", id.clone());
-        let rid = first_id(r).unwrap_or_default();
-        doc.note_refid(r);
-        if let Some(e) = get(root, rk) {
-            set_resolved(e);
-        }
-        if let Some(fk) = doc.ids.get(&id).copied()
-            && let Some(f) = get(root, fk)
-        {
-            f.attributes.push("backrefs", rid);
+        let rid = with_node(doc, root, rk, |doc, r| {
+            r.children.push(Text::new(label, None).into());
+            r.attributes.set("refid", id.clone());
+            let rid = first_id(r).unwrap_or_default();
+            doc.note_refid(r);
+            set_resolved(r);
+            rid
+        });
+        if let (Some(rid), Some(fk)) = (rid, doc.ids.get(&id).copied()) {
+            with_node(doc, root, fk, |_, f| f.attributes.push("backrefs", rid));
         }
         i += 1;
     }
-    // Symbol footnotes.
-    let mut symbol_labels = Vec::new();
-    for (start, fkey) in doc.notes.symbol_footnotes.clone().into_iter().enumerate() {
+}
+
+/// Labels symbol footnotes and their references, in order.
+fn symbolize_footnotes(doc: &mut Document, root: &mut Element) {
+    let footnotes = doc.notes.symbol_footnotes.clone();
+    let mut labels = Vec::new();
+    for (start, &fkey) in footnotes.iter().enumerate() {
         let (reps, index) = (start / SYMBOLS.len(), start % SYMBOLS.len());
         let label = SYMBOLS[index].repeat(reps + 1);
-        symbol_labels.push(label.clone());
-        if let Some(f) = get(root, fkey) {
+        labels.push(label.clone());
+        with_node(doc, root, fkey, |doc, f| {
             f.children.insert(
                 0,
                 Element::new(Kind::Label)
@@ -1137,66 +1221,37 @@ fn footnotes(doc: &mut Document, root: &mut Element) {
                     .into(),
             );
             doc.set_id(f, None, None);
-        }
+        });
     }
     let refs = doc.notes.symbol_footnote_refs.clone();
-    let symbol_footnotes = doc.notes.symbol_footnotes.clone();
-    for (n, &rk) in refs.iter().enumerate() {
-        let Some(label) = symbol_labels.get(n).cloned() else {
+    for (i, &rk) in refs.iter().enumerate() {
+        let Some(label) = labels.get(i).cloned() else {
             report_problem(
                 doc,
                 root,
                 &format!(
                     "Too many symbol footnote references: only {} corresponding footnotes available.",
-                    symbol_labels.len()
+                    labels.len()
                 ),
-                &refs[n..],
+                &refs[i..],
                 &|e| resolved(e) || has(e, "refid"),
             );
             break;
         };
-        let fid = get(root, symbol_footnotes[n])
-            .and_then(|f| first_id(f))
+        let fid = with_node(doc, root, footnotes[i], |_, f| first_id(f))
+            .flatten()
             .unwrap_or_default();
-        let Some(r) = get(root, rk) else {
-            continue;
-        };
-        r.children.push(Text::new(label, None).into());
-        r.attributes.set("refid", fid);
-        let rid = first_id(r).unwrap_or_default();
-        doc.note_refid(r);
-        if let Some(f) = get(root, symbol_footnotes[n]) {
-            f.attributes.push("backrefs", rid);
-        }
-    }
-    // Manually numbered footnotes and citations.
-    let lists = [
-        (doc.notes.footnotes.clone(), doc.notes.footnote_refs.clone()),
-        (doc.notes.citations.clone(), doc.notes.citation_refs.clone()),
-    ];
-    for (notes, refs) in lists {
-        for nk in notes {
-            let Some(note) = get(root, nk).cloned() else {
-                continue;
-            };
-            let id = first_id(&note).unwrap_or_default();
-            for label in note.attributes.get_list("names") {
-                for &rk in refs.get(label).map(Vec::as_slice).unwrap_or(&[]) {
-                    let Some(r) = get(root, rk) else {
-                        continue;
-                    };
-                    if resolved(r) {
-                        continue;
-                    }
-                    r.attributes.remove("refname");
-                    r.attributes.set("refid", id.clone());
-                    let rid = first_id(r).unwrap_or_default();
-                    set_resolved(r);
-                    if let Some(n) = get(root, nk) {
-                        n.attributes.push("backrefs", rid);
-                    }
-                }
-            }
+        let rid = with_node(doc, root, rk, |doc, r| {
+            r.children.push(Text::new(label, None).into());
+            r.attributes.set("refid", fid);
+            let rid = first_id(r).unwrap_or_default();
+            doc.note_refid(r);
+            rid
+        });
+        if let Some(rid) = rid {
+            with_node(doc, root, footnotes[i], |_, f| {
+                f.attributes.push("backrefs", rid)
+            });
         }
     }
 }

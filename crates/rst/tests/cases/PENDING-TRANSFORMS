@@ -1,11 +1,3 @@
 # Conformance cases whose transformed tree (.tpxml) is expected to differ,
 # one name per line, until the transforms they need exist. The test fails if
 # one of these starts passing: remove the name when a case passes.
-
-# 8d-3b: document title, docinfo, contents, section numbering, target notes
-directive_parts
-edge_fields
-field_list
-section
-section_levels
-target_duplicate

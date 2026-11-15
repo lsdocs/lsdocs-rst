@@ -1,0 +1,156 @@
+<document ids="doc" names="doc" source="test data" title="Doc">
+    <title>
+        Doc
+    <topic classes="contents" ids="table" names="table">
+        <title>
+            Table
+        <bullet_list classes="auto-toc">
+            <list_item>
+                <paragraph>
+                    <reference ids="toc-entry-1" refid="section-one-1">
+                        <generated classes="sectnum">
+                            3)   
+                        Section 
+                        <emphasis>
+                            one
+                         
+                <bullet_list classes="auto-toc">
+                    <list_item>
+                        <paragraph>
+                            <reference ids="toc-entry-2" refid="sub-link">
+                                <generated classes="sectnum">
+                                    3.1)   
+                                Sub 
+                                link
+            <list_item>
+                <paragraph>
+                    <reference ids="toc-entry-3" refid="section-two">
+                        <generated classes="sectnum">
+                            4)   
+                        Section two
+    <topic classes="contents local" ids="contents" names="contents">
+        <bullet_list classes="auto-toc">
+            <list_item>
+                <paragraph>
+                    <reference ids="toc-entry-4" refid="section-one-1">
+                        <generated classes="sectnum">
+                            3)   
+                        Section 
+                        <emphasis>
+                            one
+                         
+                <bullet_list classes="auto-toc">
+                    <list_item>
+                        <paragraph>
+                            <reference ids="toc-entry-5" refid="sub-link">
+                                <generated classes="sectnum">
+                                    3.1)   
+                                Sub 
+                                link
+                        <bullet_list classes="auto-toc">
+                            <list_item>
+                                <paragraph>
+                                    <reference ids="toc-entry-6" refid="deeper-sub">
+                                        <generated classes="sectnum">
+                                            3.1.1)   
+                                        Deeper 
+                                        picture
+            <list_item>
+                <paragraph>
+                    <reference ids="toc-entry-7" refid="section-two">
+                        <generated classes="sectnum">
+                            4)   
+                        Section two
+    <section ids="section-one-1" names="section\ one\ 1">
+        <title auto="1" refid="table">
+            <generated classes="sectnum">
+                3)   
+            Section 
+            <emphasis>
+                one
+             
+            <footnote_reference ids="footnote-reference-1" refid="footnote-1">
+                1
+        <topic classes="contents local" ids="here" names="here">
+            <title>
+                Here
+            <bullet_list classes="auto-toc">
+                <list_item>
+                    <paragraph>
+                        <reference ids="toc-entry-8" refid="sub-link">
+                            <generated classes="sectnum">
+                                3.1)   
+                            Sub 
+                            link
+                    <bullet_list classes="auto-toc">
+                        <list_item>
+                            <paragraph>
+                                <reference ids="toc-entry-9" refid="deeper-sub">
+                                    <generated classes="sectnum">
+                                        3.1.1)   
+                                    Deeper 
+                                    picture
+        <section ids="sub-link" names="sub\ link">
+            <title auto="1">
+                <generated classes="sectnum">
+                    3.1)   
+                Sub 
+                <reference name="link" refuri="http://x.org">
+                    link
+                <target ids="link" names="link" refuri="http://x.org">
+            <section ids="deeper-sub" names="deeper\ sub">
+                <title auto="1" refid="toc-entry-9">
+                    <generated classes="sectnum">
+                        3.1.1)   
+                    Deeper 
+                    <image alt="picture" uri="pic.png">
+                <substitution_definition names="sub">
+                    <image alt="picture" uri="pic.png">
+    <section ids="section-two" names="section\ two">
+        <title auto="1" refid="table">
+            <generated classes="sectnum">
+                4)   
+            Section two
+        <paragraph>
+            Text with 
+            <reference name="anon" refuri="http://a.org">
+                anon
+             and 
+            <reference name="named" refuri="http://n.org">
+                named
+             
+            <footnote_reference auto="1" ids="footnote-reference-4" refid="footnote-3">
+                3
+            <inline classes="tn">
+                 
+            <footnote_reference auto="1" classes="tn" ids="footnote-reference-2" refid="footnote-2">
+                2
+             and 
+            <reference name="named" refuri="http://n.org">
+                named
+             
+            <footnote_reference auto="1" ids="footnote-reference-5" refid="footnote-3">
+                3
+            <inline classes="tn">
+                 
+            <footnote_reference auto="1" classes="tn" ids="footnote-reference-3" refid="footnote-2">
+                2
+            .
+        <target ids="named" names="named" refuri="http://n.org">
+        <footnote backrefs="footnote-reference-1" ids="footnote-1" names="1">
+            <label>
+                1
+            <paragraph>
+                Note.
+        <footnote auto="1" backrefs="footnote-reference-2 footnote-reference-3" ids="footnote-2" names="TARGET_NOTE:\ footnote-2">
+            <label>
+                2
+            <paragraph>
+                <reference refuri="http://n.org">
+                    http://n.org
+        <footnote auto="1" backrefs="footnote-reference-4 footnote-reference-5" ids="footnote-3" names="TARGET_NOTE:\ footnote-3">
+            <label>
+                3
+            <paragraph>
+                <reference refuri="http://n.org">
+                    http://n.org

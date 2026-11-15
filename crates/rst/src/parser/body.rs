@@ -2,7 +2,7 @@
 //! compound constructs): block quotes, bullet, enumerated, field and
 //! option lists, doctest blocks and line blocks.
 
-use super::document::{At, Document, ERROR, INFO, LINE_INDENT, WARNING, fixed};
+use super::document::{At, Document, ERROR, INFO, LINE, LINE_INDENT, RAW, WARNING, fixed};
 use super::inline::{Origin, inline_text};
 use super::machine::{Flow, Machine, State, Step, Tr, join, span_of};
 use crate::lines::Line;
@@ -451,6 +451,7 @@ impl Machine {
         let mut field_name = Element::new(Kind::FieldName).with_children(nodes);
         field_name.span = span;
         let mut body = Element::new(Kind::FieldBody).with_children(messages);
+        body.attributes.set(RAW, join(&indented));
         if simple {
             let mut lines: Vec<Line> = Vec::new();
             for line in indented.iter().cloned().chain([Line::default()]) {
@@ -474,6 +475,7 @@ impl Machine {
             .with_child(field_name)
             .with_child(body);
         field.span = span;
+        field.attributes.set(LINE, lineno as i64);
         super::document::cover_children(&mut field);
         (field, blank_finish)
     }

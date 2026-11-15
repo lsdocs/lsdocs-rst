@@ -1,0 +1,81 @@
+<document source="test data">
+    <section ids="title" names="title">
+        <title>
+            Title
+        <section ids="subtitle" names="subtitle">
+            <title>
+                Subtitle
+            <field_list>
+                <field>
+                    <field_name>
+                        Author
+                    <field_body>
+                        <paragraph>
+                            Me
+                <field>
+                    <field_name>
+                        Authors
+                    <field_body>
+                        <paragraph>
+                            A; B, C
+                <field>
+                    <field_name>
+                        Date
+                    <field_body>
+                        <paragraph>
+                            $Date: 2024-01-02 10:00:00 $
+                <field>
+                    <field_name>
+                        Version
+                    <field_body>
+                        <enumerated_list enumtype="arabic" prefix="" suffix=".">
+                            <list_item>
+                                <paragraph>
+                                    Jan
+                <field>
+                    <field_name>
+                        Status
+                    <field_body>
+                <field>
+                    <field_name>
+                        Abstract
+                    <field_body>
+                        <paragraph>
+                            Some text.
+                <field>
+                    <field_name>
+                        Abstract
+                    <field_body>
+                        <paragraph>
+                            Again.
+                <field>
+                    <field_name>
+                        Address
+                    <field_body>
+                        <bullet_list bullet="-">
+                            <list_item>
+                                <paragraph>
+                                    x
+                            <list_item>
+                                <paragraph>
+                                    y
+                <field>
+                    <field_name>
+                        Dedication
+                    <field_body>
+                        <paragraph>
+                            For you.
+                <field>
+                    <field_name>
+                        Custom Field
+                    <field_body>
+                        <paragraph>
+                            value
+                <field>
+                    <field_name>
+                        Revision
+                    <field_body>
+                        <paragraph>
+                            $Revision: 1.2 $
+            <paragraph>
+                Body.

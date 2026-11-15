@@ -3,8 +3,8 @@
 Generates random documents from fragments of block-level markup and
 sentences of inline markup, parses each with docutils and with lsdocs-rst
 (through the crate's `pformat` example), and compares the pseudo-XML.
-Directives are all unknown ones (lsdocs-rst does not run directives
-yet).
+docutils gets a time limit per document (some inputs make its transforms
+loop forever); documents over it are skipped and counted.
 
 Run through `nur fuzz rst`, which builds the example and pins the docutils
 version. Mismatches are written to `<work>/mismatch-<n>.{rst,want,got}`.
@@ -12,6 +12,7 @@ version. Mismatches are written to `<work>/mismatch-<n>.{rst,want,got}`.
 
 import argparse
 import io
+import multiprocessing
 import random
 import subprocess
 from pathlib import Path
@@ -106,6 +107,10 @@ def document(rng: random.Random) -> str:
     return "\n".join(lines) + "\n"
 
 
+# Seconds docutils may take on one document.
+TIMEOUT = 10
+
+
 def docutils_pxml(text: str) -> str:
     settings = get_default_settings(Parser)
     settings.warning_stream = io.StringIO()
@@ -161,9 +166,18 @@ def main() -> None:
             for f in chunk:
                 subprocess.run([args.binary, "--out", str(outputs)] + flags + [f], capture_output=True)
 
-    mismatches = 0
+    mismatches = skipped = 0
+    convert = docutils_transformed if args.transforms else docutils_pxml
+    pool = multiprocessing.Pool(1)
     for name, text in texts.items():
-        want = docutils_transformed(text) if args.transforms else docutils_pxml(text)
+        try:
+            want = pool.apply_async(convert, (text,)).get(timeout=TIMEOUT)
+        except multiprocessing.TimeoutError:
+            pool.terminate()
+            pool = multiprocessing.Pool(1)
+            print(f"skipped {name}: docutils did not finish in {TIMEOUT} s")
+            skipped += 1
+            continue
         out = outputs / f"{name}.pxml"
         got = out.read_bytes().decode() if out.exists() else "(lsdocs-rst panicked)"
         if want != got:
@@ -172,7 +186,10 @@ def main() -> None:
             base.with_suffix(".want").write_bytes(want.encode())
             base.with_suffix(".got").write_bytes(got.encode())
             mismatches += 1
-    print(f"seed {args.seed}: {args.count - mismatches} of {args.count} match docutils")
+    pool.terminate()
+    compared = args.count - skipped
+    print(f"seed {args.seed}: {compared - mismatches} of {compared} match docutils"
+          + (f" ({skipped} skipped)" if skipped else ""))
     if mismatches:
         print(f"mismatches written to {args.work}/mismatch-*")
         raise SystemExit(1)

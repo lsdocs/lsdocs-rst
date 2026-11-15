@@ -1,0 +1,76 @@
+<document source="test data">
+    <docinfo>
+        <authors>
+            <author>
+                One
+            <author>
+                Two
+        <author>
+            A. Einstein
+        <organization>
+            <emphasis>
+                Org
+             and co
+        <contact>
+            me, myself
+        <field classes="copyright">
+            <field_name>
+                Copyright
+            <field_body>
+                <paragraph>
+                    one
+                <paragraph>
+                    two
+                <system_message level="2" line="8" source="test data" type="WARNING">
+                    <paragraph>
+                        Bibliographic field "Copyright"
+                        must contain a single <paragraph>, not [<paragraph>, <paragraph>].
+        <authors>
+            <author>
+                X; Y
+            <author>
+                Z
+        <authors>
+            <author>
+                First
+            <author>
+                Second
+        <field classes="authors">
+            <field_name>
+                Authors
+            <field_body>
+                <bullet_list bullet="-">
+                    <list_item>
+                <system_message level="2" line="19" source="test data" type="WARNING">
+                    <paragraph>
+                        Cannot extract "Authors" from bibliographic field:
+                        Bibliographic field "Authors" must contain either
+                         a single paragraph (with author names separated by a character from the set ";,"),
+                         multiple paragraphs (one per author),
+                         or a bullet list with one author name per item.
+                        Note: Leading initials can cause (mis)recognizing names as enumerated list.
+        <date>
+            file.txt
+        <status>
+            1 $ and $Rev: 2
+        <field classes="version">
+            <field_name>
+                Version
+            <field_body>
+                <enumerated_list enumtype="arabic" prefix="" suffix=".">
+                    <list_item>
+                        <paragraph>
+                            x
+                    <list_item>
+                        <paragraph>
+                            y
+                <system_message level="2" line="22" source="test data" type="WARNING">
+                    <paragraph>
+                        Bibliographic field "Version"
+                        must contain a single <paragraph>, not a <enumerated_list>.
+        <version>
+            1. one
+    <comment xml:space="preserve">
+        comment
+    <paragraph>
+        Text.

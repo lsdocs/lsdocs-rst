@@ -1,0 +1,92 @@
+<document source="test data">
+    <section ids="doc" names="doc">
+        <title>
+            Doc
+        <topic classes="contents" ids="table" names="table">
+            <title>
+                Table
+            <pending>
+                .. internal attributes:
+                     .transform: docutils.transforms.parts.Contents
+                     .details:
+                       backlinks: 'top'
+                       depth: 2
+        <pending>
+            .. internal attributes:
+                 .transform: docutils.transforms.parts.SectNum
+                 .details:
+                   start: 3
+                   suffix: ')'
+        <topic classes="contents local" ids="contents" names="contents">
+            <pending>
+                .. internal attributes:
+                     .transform: docutils.transforms.parts.Contents
+                     .details:
+                       backlinks: None
+                       local: None
+        <section ids="section-one-1" names="section\ one\ 1">
+            <title>
+                Section 
+                <emphasis>
+                    one
+                 
+                <footnote_reference ids="footnote-reference-1" refname="1">
+                    1
+            <topic classes="contents local" ids="here" names="here">
+                <title>
+                    Here
+                <pending>
+                    .. internal attributes:
+                         .transform: docutils.transforms.parts.Contents
+                         .details:
+                           local: None
+            <section ids="sub-link" names="sub\ link">
+                <title>
+                    Sub 
+                    <reference name="link" refuri="http://x.org">
+                        link
+                    <target ids="link" names="link" refuri="http://x.org">
+                <section ids="deeper-sub" names="deeper\ sub">
+                    <title>
+                        Deeper 
+                        <substitution_reference refname="sub">
+                            sub
+                    <substitution_definition names="sub">
+                        <image alt="picture" uri="pic.png">
+        <section ids="section-two" names="section\ two">
+            <title>
+                Section two
+            <paragraph>
+                Text with 
+                <reference name="anon" refuri="http://a.org">
+                    anon
+                 and 
+                <reference name="named" refname="named">
+                    named
+                 and 
+                <reference name="named" refname="named">
+                    named
+                .
+            <target ids="named" names="named" refuri="http://n.org">
+            <topic classes="contents local" ids="empty" names="empty">
+                <title>
+                    Empty
+                <pending>
+                    .. internal attributes:
+                         .transform: docutils.transforms.parts.Contents
+                         .details:
+                           local: None
+            <footnote ids="footnote-1" names="1">
+                <label>
+                    1
+                <paragraph>
+                    Note.
+            <pending>
+                .. internal attributes:
+                     .transform: docutils.transforms.references.TargetNotes
+                     .details:
+                       class: ['tn']
+            <pending>
+                .. internal attributes:
+                     .transform: docutils.transforms.references.TargetNotes
+                     .details:

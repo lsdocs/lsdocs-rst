@@ -241,6 +241,7 @@ impl Machine {
             self.nested_parse(doc, indented, offset);
             node = doc.close().unwrap();
         }
+        doc.update_snapshot(&node);
         (vec![node.into()], blank_finish)
     }
 
