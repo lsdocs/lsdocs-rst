@@ -1,0 +1,58 @@
+<document source="test data">
+    <footnote dupnames="1" ids="footnote-1">
+        <label>
+            1
+        <paragraph>
+            One.
+    <footnote dupnames="1" ids="footnote-2">
+        <label>
+            1
+        <system_message backrefs="footnote-2" level="2" line="2" source="test data" type="WARNING">
+            <paragraph>
+                Duplicate explicit target name: "1".
+        <paragraph>
+            Again.
+    <section dupnames="section" ids="section">
+        <title>
+            Section
+        <system_message level="1" line="7" source="test data" type="INFO">
+            <paragraph>
+                Target name overrides implicit target name "section".
+        <target ids="section-1" names="section" refuri="http://example.com">
+        <target ids="a" names="a" refname="b c">
+        <target ids="multi-line-name" names="multi\ line\ name" refuri="http://example.com/x">
+        <target anonymous="1" ids="target-1">
+        <comment xml:space="preserve">
+        <system_message level="2" line="17" source="test data" type="WARNING">
+            <paragraph>
+                malformed substitution definition.
+        <target ids="quoted-name" names="quoted:name" refuri="http://q.example.com">
+        <footnote auto="1" ids="footnote-3">
+            <paragraph>
+                Auto.
+        <footnote auto="1" ids="footnote-4">
+            <paragraph>
+                Auto two.
+        <footnote auto="1" ids="n" names="n">
+            <paragraph>
+                Named.
+        <footnote auto="*" ids="footnote-5">
+            <paragraph>
+                Star.
+        <footnote auto="*" ids="footnote-6">
+            <paragraph>
+                Star two.
+        <citation dupnames="cit" ids="cit">
+            <label>
+                CIT
+            <system_message level="2" line="20" source="test data" type="WARNING">
+                <paragraph>
+                    Citation content expected.
+        <citation dupnames="cit" ids="cit-1">
+            <label>
+                CIT
+            <system_message backrefs="cit-1" level="2" line="27" source="test data" type="WARNING">
+                <paragraph>
+                    Duplicate explicit target name: "cit".
+            <paragraph>
+                Dup.

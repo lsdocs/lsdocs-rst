@@ -17,15 +17,17 @@
 //! The crate stands alone: it depends on nothing from lsdocs, and lsdocs'
 //! `parser-rst` plugin converts its tree into lsdocs' own.
 //!
-//! **Status:** early. The parser handles paragraphs; sections, lists and
-//! the other block constructs, inline markup, tables, directives and roles
-//! are being added, each checked against docutils' own output (see
-//! `tests/conformance.rs`).
+//! **Status:** early. The parser handles the block structure (sections,
+//! lists, literal blocks, explicit markup and the rest); inline markup,
+//! tables, directives and roles are being added, each checked against
+//! docutils' own output (see `tests/conformance.rs`).
 
 pub mod lines;
 pub mod nodes;
 mod parser;
+mod patterns;
 mod pformat;
+mod util;
 
 pub use nodes::{AttrValue, Attributes, Element, Kind, Node, Span, Text};
 pub use parser::Parser;

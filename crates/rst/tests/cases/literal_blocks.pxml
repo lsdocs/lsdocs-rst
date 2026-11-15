@@ -1,0 +1,19 @@
+<document source="test data">
+    <paragraph>
+        Paragraph:
+    <literal_block xml:space="preserve">
+        Literal text
+          with indent.
+    <paragraph>
+        Expanded form:
+    <literal_block xml:space="preserve">
+        Second literal.
+    <literal_block xml:space="preserve">
+        Third literal.
+    <paragraph>
+        Quoted:
+    <literal_block xml:space="preserve">
+        > Quoted literal
+        > second line
+    <paragraph>
+        Back to text.

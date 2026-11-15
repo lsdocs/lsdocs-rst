@@ -468,6 +468,12 @@ impl Element {
         self
     }
 
+    /// The element with `children` appended.
+    pub fn with_children<N: Into<Node>>(mut self, children: impl IntoIterator<Item = N>) -> Self {
+        self.children.extend(children.into_iter().map(Into::into));
+        self
+    }
+
     /// The text content of all descendants, concatenated.
     pub fn astext(&self) -> String {
         self.children.iter().map(Node::astext).collect()

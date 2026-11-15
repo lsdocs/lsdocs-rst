@@ -11,3 +11,6 @@ categories = ["parser-implementations", "text-processing"]
 
 [lints]
 workspace = true
+
+[dependencies]
+unicode-normalization.workspace = true

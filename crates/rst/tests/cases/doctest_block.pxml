@@ -1,0 +1,9 @@
+<document source="test data">
+    <paragraph>
+        Text.
+    <doctest_block xml:space="preserve">
+        >>> print(1)
+        1
+        >>> x = 2
+    <paragraph>
+        More.

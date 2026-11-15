@@ -1,0 +1,36 @@
+<document source="test data">
+    <definition_list>
+        <definition_list_item>
+            <term>
+                Term::
+            <definition>
+                <system_message level="1" line="2" source="test data" type="INFO">
+                    <paragraph>
+                        Blank line missing before literal block (after the "::")? Interpreted as a definition list item.
+                <paragraph>
+                    Definition after colons.
+        <definition_list_item>
+            <term>
+                Term
+            <definition>
+                <paragraph>
+                    Def.
+    <system_message level="2" line="6" source="test data" type="WARNING">
+        <paragraph>
+            Definition list ends without a blank line; unexpected unindent.
+    <paragraph>
+        Term two
+        Not a definition.
+    <definition_list>
+        <definition_list_item>
+            <term>
+                Term three
+            <definition>
+                <block_quote>
+                    <paragraph>
+                        Def three.
+                <system_message level="2" line="11" source="test data" type="WARNING">
+                    <paragraph>
+                        Block quote ends without a blank line; unexpected unindent.
+                <paragraph>
+                    Less indented.

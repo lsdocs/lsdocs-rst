@@ -1,0 +1,10 @@
+<document source="test data">
+    <target ids="example" names="example" refuri="http://example.com">
+    <target ids="indirect" names="indirect" refname="example">
+    <target ids="phrase-target" names="phrase\ target" refuri="http://example.org/path">
+    <target ids="internal" names="internal">
+    <paragraph>
+        Paragraph.
+    <target anonymous="1" ids="target-1" refuri="http://anonymous.example.com">
+    <target anonymous="1" ids="target-2" refuri="http://anon2.example.com">
+    <target ids="mail" names="mail" refuri="mailto:me@example.com">

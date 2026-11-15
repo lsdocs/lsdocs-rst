@@ -1,0 +1,17 @@
+<document source="test data">
+    <paragraph>
+        Text.
+    <paragraph>
+        ---
+    <paragraph>
+        Text.
+    <system_message level="2" line="9" source="test data" type="WARNING">
+        <paragraph>
+            Literal block expected; none found.
+    <system_message level="1" line="10" source="test data" type="INFO">
+        <paragraph>
+            Possible title underline, too short for the title.
+            Treating it as ordinary text because it's so short.
+    <paragraph>
+        Para
+        ==

@@ -1,0 +1,12 @@
+<document source="test data">
+    <paragraph>
+        Text.
+    <block_quote>
+        <block_quote>
+            <paragraph>
+                Quote
+        <system_message level="2" line="4" source="test data" type="WARNING">
+            <paragraph>
+                Block quote ends without a blank line; unexpected unindent.
+        <paragraph>
+            dedented less.

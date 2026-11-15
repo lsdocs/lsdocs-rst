@@ -1,0 +1,47 @@
+<document source="test data">
+    <system_message level="1" line="1" source="test data" type="INFO">
+        <paragraph>
+            Possible incomplete section title.
+            Treating the overline as ordinary text because it's so short.
+    <paragraph>
+        --
+        Short overline
+        --
+    <section ids="over" names="over">
+        <title>
+            Over
+        <section dupnames="under" ids="under">
+            <title>
+                Under
+        <section ids="again-over" names="again\ over">
+            <title>
+                Again Over
+            <section ids="sub" names="sub">
+                <title>
+                    Sub
+    <section ids="over2" names="over2">
+        <title>
+            Over2
+        <system_message level="3" line="23" source="test data" type="ERROR">
+            <paragraph>
+                Inconsistent title style: skip from level 1 to 4.
+            <literal_block xml:space="preserve">
+                Skip Two
+                ++++++++
+            <paragraph>
+                Established title styles: =/= = -/-
+        <system_message level="1" line="26" source="test data" type="INFO">
+            <paragraph>
+                Target name overrides implicit target name "under".
+        <target ids="under-1" names="under">
+        <paragraph>
+            Target before.
+        <section ids="wide" names="wide">
+            <title>
+                Wide
+            <system_message level="3" line="33" source="test data" type="ERROR">
+                <paragraph>
+                    Incomplete section title.
+                <literal_block xml:space="preserve">
+                    =====
+                    Incomplete

@@ -1,0 +1,22 @@
+<document source="test data">
+    <comment xml:space="preserve">
+        comment
+        continues
+        
+        after blank
+    <system_message level="1" line="6" source="test data" type="INFO">
+        <paragraph>
+            No directive entry for "nosuch" in module "docutils.parsers.rst.languages.en".
+            Trying "nosuch" as canonical directive name.
+    <system_message level="3" line="6" source="test data" type="ERROR">
+        <paragraph>
+            Unknown directive type "nosuch".
+        <literal_block xml:space="preserve">
+            nosuch:: x.png
+    <system_message level="2" line="6" source="test data" type="WARNING">
+        <paragraph>
+            Substitution definition "sub" empty or invalid.
+        <literal_block xml:space="preserve">
+            .. |sub| nosuch:: x.png
+    <target ids="t" names="t" refuri="http://x.example.com">
+    <comment xml:space="preserve">

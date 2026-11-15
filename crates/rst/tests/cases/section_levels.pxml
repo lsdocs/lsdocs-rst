@@ -1,0 +1,26 @@
+<document source="test data">
+    <section ids="top" names="top">
+        <title>
+            Top
+        <paragraph>
+            Intro.
+        <section ids="second" names="second">
+            <title>
+                Second
+            <paragraph>
+                Text.
+            <section ids="third" names="third">
+                <title>
+                    Third
+                <paragraph>
+                    Deep.
+                <section ids="fourth" names="fourth">
+                    <title>
+                        Fourth
+                    <paragraph>
+                        Deeper.
+        <section ids="back-up" names="back\ up">
+            <title>
+                Back Up
+            <paragraph>
+                Done.

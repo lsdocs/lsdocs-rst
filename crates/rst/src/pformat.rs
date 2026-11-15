@@ -4,7 +4,8 @@
 //! Each element is a line `<tag name="value" ...>` with attributes sorted
 //! by name, followed by its children indented four spaces; text is printed
 //! line by line at its parent's indentation plus four. Empty basic list
-//! attributes (`ids`, `classes`, `names`, `dupnames`) are left out. List
+//! attributes (`ids`, `classes`, `names`, `dupnames`) and an empty
+//! `backrefs` are left out. List
 //! values are joined with spaces, `\` and spaces in items escaped with `\`;
 //! flags print as `1` or `0`. Nothing is XML-escaped.
 
@@ -25,7 +26,10 @@ impl Element {
         let mut tag = format!("<{}", self.kind.tag());
         for (name, value) in self.attributes.iter() {
             let value = match value {
-                AttrValue::List(list) if list.is_empty() && BASIC_ATTRIBUTES.contains(&name) => {
+                AttrValue::List(list)
+                    if list.is_empty()
+                        && (BASIC_ATTRIBUTES.contains(&name) || name == "backrefs") =>
+                {
                     continue;
                 }
                 AttrValue::List(list) => list

@@ -1,0 +1,34 @@
+<document source="test data">
+    <system_message level="1" line="2" source="test data" type="INFO">
+        <paragraph>
+            Possible title underline, too short for the title.
+            Treating it as ordinary text because it's so short.
+    <paragraph>
+        Short
+        ===
+    <section ids="too-short-title" names="too\ short\ title">
+        <title>
+            Too Short Title
+        <system_message level="2" line="5" source="test data" type="WARNING">
+            <paragraph>
+                Title underline too short.
+            <literal_block xml:space="preserve">
+                Too Short Title
+                ====
+        <paragraph>
+            Text.
+        <section ids="skip" names="skip">
+            <title>
+                Skip
+            <system_message level="3" line="12" source="test data" type="ERROR">
+                <paragraph>
+                    Title overline & underline mismatch.
+                <literal_block xml:space="preserve">
+                    =====
+                    Title
+                    -----
+            <paragraph>
+                Paragraph.
+            <section ids="bad" names="bad">
+                <title>
+                    Bad

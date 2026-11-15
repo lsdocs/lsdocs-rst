@@ -1,0 +1,25 @@
+<document source="test data">
+    <paragraph>
+        Text.
+    <block_quote>
+        <paragraph>
+            Quoted text.
+        <attribution>
+            Attribution Name
+    <paragraph>
+        Text two.
+    <block_quote>
+        <block_quote>
+            <paragraph>
+                Quote one.
+        <paragraph>
+            Quote two, less indented.
+        <block_quote>
+            <paragraph>
+                Deeper.
+    <paragraph>
+        Text three.
+    <block_quote>
+        <paragraph>
+            Quoted
+            -- not an attribution

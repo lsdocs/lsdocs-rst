@@ -1,0 +1,75 @@
+<document source="test data">
+    <option_list>
+        <option_list_item>
+            <option_group>
+                <option>
+                    <option_string>
+                        -a
+            <description>
+                <paragraph>
+                    Option a.
+        <option_list_item>
+            <option_group>
+                <option>
+                    <option_string>
+                        -b
+                    <option_argument delimiter=" ">
+                        file
+            <description>
+                <paragraph>
+                    Option b.
+        <option_list_item>
+            <option_group>
+                <option>
+                    <option_string>
+                        --long
+            <description>
+                <paragraph>
+                    Long option.
+        <option_list_item>
+            <option_group>
+                <option>
+                    <option_string>
+                        --input
+                    <option_argument delimiter="=">
+                        file
+            <description>
+                <paragraph>
+                    With argument.
+        <option_list_item>
+            <option_group>
+                <option>
+                    <option_string>
+                        -c
+                <option>
+                    <option_string>
+                        --count
+            <description>
+                <paragraph>
+                    Synonyms.
+        <option_list_item>
+            <option_group>
+                <option>
+                    <option_string>
+                        /V
+            <description>
+                <paragraph>
+                    DOS style.
+        <option_list_item>
+            <option_group>
+                <option>
+                    <option_string>
+                        -f
+                    <option_argument delimiter=" ">
+                        <[path]file>
+            <description>
+                <paragraph>
+                    Angle argument.
+        <option_list_item>
+            <option_group>
+                <option>
+                    <option_string>
+                        --very-long-option
+            <description>
+                <paragraph>
+                    Description below.

@@ -1,0 +1,13 @@
+<document source="test data">
+    <citation ids="cit2002" names="cit2002">
+        <label>
+            CIT2002
+        <paragraph>
+            A citation.
+    <citation ids="other-ref-1" names="other-ref.1">
+        <label>
+            Other-Ref.1
+        <paragraph>
+            Body.
+    <paragraph>
+        Text.

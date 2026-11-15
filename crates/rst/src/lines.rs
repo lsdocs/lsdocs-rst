@@ -92,7 +92,7 @@ fn expand_tabs(line: &str) -> String {
 }
 
 /// Whether Python's `str.rstrip()` removes `c`.
-fn is_python_whitespace(c: char) -> bool {
+pub(crate) fn is_python_whitespace(c: char) -> bool {
     c.is_whitespace() || matches!(c, '\x1c'..='\x1f')
 }
 

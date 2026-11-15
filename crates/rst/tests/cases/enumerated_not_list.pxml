@@ -1,0 +1,7 @@
+<document source="test data">
+    <paragraph>
+        1. Not a list
+        because the second line is text.
+    <paragraph>
+        A. Also not
+        B because.

@@ -1,0 +1,22 @@
+<document source="test data">
+    <line_block>
+        <line>
+            Line one
+        <line>
+            Line two
+        <line_block>
+            <line>
+                Indented
+            <line>
+                More indented
+            <line_block>
+                <line>
+                    Deeper
+        <line>
+            Back
+        <line>
+        <line>
+            After empty
+            continuation
+    <paragraph>
+        Text.
