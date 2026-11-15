@@ -6,6 +6,7 @@
 //! parsed by a nested machine over their own lines. Line offsets are
 //! signed because docutils lets them go to -1 and indexes like Python.
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::document::{At, Document, WARNING};
@@ -94,8 +95,52 @@ pub(crate) enum Flow {
 /// The result of a transition: the next state.
 pub(crate) type Step = Result<State, Flow>;
 
+/// Input lines shared by the machines working on them. Like docutils'
+/// `ViewList`, a list taken from another remembers where (`parent`), and
+/// lines inserted into it (by `include`) go into that list too.
+pub(crate) struct LineList {
+    lines: Rc<[Line]>,
+    parent: Option<(Lines, isize)>,
+}
+
+/// A shared [`LineList`].
+pub(crate) type Lines = Rc<RefCell<LineList>>;
+
+impl LineList {
+    /// A list of `lines`, taken from `parent` at an index, if any.
+    pub(crate) fn new(lines: Vec<Line>, parent: Option<(Lines, isize)>) -> Lines {
+        Rc::new(RefCell::new(LineList {
+            lines: Rc::from(lines),
+            parent,
+        }))
+    }
+
+    /// The lines now.
+    pub(crate) fn get(this: &Lines) -> Rc<[Line]> {
+        this.borrow().lines.clone()
+    }
+
+    /// Inserts `new` at `index`, here and in the lists this one was taken
+    /// from.
+    fn insert(this: &Lines, index: usize, new: &[Line]) {
+        let (index, parent) = {
+            let mut list = this.borrow_mut();
+            let mut lines = list.lines.to_vec();
+            let index = index.min(lines.len());
+            lines.splice(index..index, new.iter().cloned());
+            list.lines = Rc::from(lines);
+            (index, list.parent.clone())
+        };
+        if let Some((parent, offset)) = parent {
+            LineList::insert(&parent, (index as isize + offset).max(0) as usize, new);
+        }
+    }
+}
+
 /// A state machine over some lines.
 pub(crate) struct Machine {
+    list: Lines,
+    /// `list`'s lines when last looked at.
     data: Rc<[Line]>,
     lo: usize,
     /// The absolute line offset of the first line.
@@ -120,9 +165,11 @@ pub(crate) struct Machine {
 impl Machine {
     /// A machine over `data[lo..]`, the first line at absolute offset
     /// `input_offset`.
-    pub(crate) fn new(data: Rc<[Line]>, lo: usize, input_offset: isize) -> Self {
+    pub(crate) fn new(list: Lines, lo: usize, input_offset: isize) -> Self {
+        let data = LineList::get(&list);
         Self {
             lo: lo.min(data.len()),
+            list,
             data,
             input_offset,
             line_offset: -1,
@@ -140,16 +187,52 @@ impl Machine {
 
     /// A machine over a view from [`Machine::rest`] or
     /// [`Machine::current_on`].
-    pub(crate) fn new_view((data, lo, offset): (Rc<[Line]>, usize, isize)) -> Self {
-        Self::new(data, lo, offset)
+    pub(crate) fn new_view((list, lo, offset): (Lines, usize, isize)) -> Self {
+        Self::new(list, lo, offset)
     }
 
-    /// The document's top-level machine.
-    pub(crate) fn top(lines: Vec<Line>) -> Self {
-        let mut m = Self::new(Rc::from(lines), 0, 0);
+    /// A machine over `lines`, taken from no other list.
+    pub(crate) fn detached(lines: Vec<Line>, input_offset: isize) -> Self {
+        Self::new(LineList::new(lines, None), 0, input_offset)
+    }
+
+    /// The document's top-level machine; the document looks lines up in
+    /// its list.
+    pub(crate) fn top(doc: &mut Document, lines: Vec<Line>) -> Self {
+        let mut m = Self::detached(lines, 0);
+        doc.top_lines = Some(m.list.clone());
         m.match_titles = true;
         m.top = true;
         m
+    }
+
+    /// Catches up with lines inserted into the list.
+    fn refresh(&mut self) {
+        let lines = LineList::get(&self.list);
+        if !Rc::ptr_eq(&lines, &self.data) {
+            self.data = lines;
+        }
+    }
+
+    /// Inserts `lines` from `source` after the current line, between
+    /// padding lines (docutils' `insert_input`).
+    pub(crate) fn insert_input(&mut self, lines: Vec<Line>, source: &str) {
+        let span = lines.first().map(|l| l.span).unwrap_or_default();
+        let blank = |what: &str, offset: isize| Line {
+            text: String::new(),
+            span,
+            origin: crate::lines::LineOrigin {
+                source: Some(Rc::from(format!("internal padding {what} {source}"))),
+                offset,
+            },
+        };
+        let mut new = vec![blank("before", -1)];
+        let after = blank("after", lines.len() as isize);
+        new.extend(lines);
+        new.push(after);
+        let index = self.lo + (self.line_offset + 1).max(0) as usize;
+        LineList::insert(&self.list, index, &new);
+        self.refresh();
     }
 
     /// The number of lines.
@@ -193,19 +276,33 @@ impl Machine {
     }
 
     /// The remaining lines after the current one, for a nested machine.
-    pub(crate) fn rest(&self) -> (Rc<[Line]>, usize, isize) {
+    pub(crate) fn rest(&self) -> (Lines, usize, isize) {
         let next = (self.line_offset + 1).max(0) as usize;
         (
-            self.data.clone(),
+            self.list.clone(),
             self.lo + next,
             self.abs_line_offset() + 1,
         )
     }
 
     /// The lines from the current one on.
-    pub(crate) fn current_on(&self) -> (Rc<[Line]>, usize, isize) {
+    pub(crate) fn current_on(&self) -> (Lines, usize, isize) {
         let current = self.line_offset.max(0) as usize;
-        (self.data.clone(), self.lo + current, self.abs_line_offset())
+        (self.list.clone(), self.lo + current, self.abs_line_offset())
+    }
+
+    /// The source (`None` for the document) and line of the current line,
+    /// as this machine finds them (docutils' `get_source_and_line()`).
+    pub(crate) fn source_and_line(&self) -> (Option<Rc<str>>, Option<usize>) {
+        let len = self.len();
+        let off = self.line_offset;
+        let (line, past_end) = match self.get(off) {
+            Some(l) => (l, 0),
+            None if off == len && len > 0 => (self.get(len - 1).unwrap(), 1),
+            None => return (None, None),
+        };
+        let number = line.origin.offset + 1 + past_end;
+        (line.origin.source.clone(), usize::try_from(number).ok())
     }
 
     pub(crate) fn abs_line_offset(&self) -> isize {
@@ -220,13 +317,15 @@ impl Machine {
     fn notify(&self, doc: &mut Document) {
         let len = self.len();
         let off = self.line_offset;
-        let line = if (0..len).contains(&off) {
-            Some(self.input_offset + off + 1)
-        } else if (-len..0).contains(&off) {
-            Some(self.input_offset + len + off + 1)
-        } else {
-            None
+        let (source, line) = match self.get(off) {
+            Some(l) => (l.origin.source.clone(), Some(l.origin.offset + 1)),
+            // Just past the end: the last line's source, no line.
+            None if off == len && len > 0 => {
+                (self.get(len - 1).unwrap().origin.source.clone(), None)
+            }
+            None => (None, None),
         };
+        doc.current_source = source;
         doc.current_line = line.and_then(|l| usize::try_from(l).ok());
         if self.top {
             doc.top_offset = off;
@@ -235,6 +334,7 @@ impl Machine {
 
     /// Moves `n` lines on; `false` past the end.
     pub(crate) fn next_line(&mut self, doc: &mut Document, n: isize) -> bool {
+        self.refresh();
         self.line_offset += n;
         self.notify(doc);
         self.get(self.line_offset).is_some()
@@ -242,12 +342,14 @@ impl Machine {
 
     /// Moves `n` lines back.
     pub(crate) fn previous_line(&mut self, doc: &mut Document, n: isize) {
+        self.refresh();
         self.line_offset -= n;
         self.notify(doc);
     }
 
     /// Jumps to absolute line offset `abs`.
     pub(crate) fn goto_line(&mut self, doc: &mut Document, abs: isize) {
+        self.refresh();
         self.line_offset = abs - self.input_offset;
         self.notify(doc);
     }
@@ -504,17 +606,52 @@ impl Machine {
         }
     }
 
-    /// Runs a nested machine over `lines`, from state Body, into the
+    /// Runs a nested machine over `lines`, taken from this machine's
+    /// lines at absolute offset `offset`, from state Body, into the
     /// document's current parent. Returns the new absolute line offset.
+    /// Lines inserted meanwhile are skipped here too (docutils'
+    /// `nested_parse`).
     pub(crate) fn nested_parse(
-        &self,
+        &mut self,
         doc: &mut Document,
         lines: Vec<Line>,
         offset: isize,
     ) -> isize {
-        let mut m = Machine::new(Rc::from(lines), 0, offset);
+        let index = offset - (self.input_offset - self.lo as isize);
+        let parent = Some((self.list.clone(), index));
+        self.nested_parse_in(doc, lines, offset, parent)
+    }
+
+    /// [`Machine::nested_parse`] for lines not taken from this machine's
+    /// (table cells).
+    pub(crate) fn nested_parse_detached(
+        &mut self,
+        doc: &mut Document,
+        lines: Vec<Line>,
+        offset: isize,
+    ) -> isize {
+        self.nested_parse_in(doc, lines, offset, None)
+    }
+
+    fn nested_parse_in(
+        &mut self,
+        doc: &mut Document,
+        lines: Vec<Line>,
+        offset: isize,
+        parent: Option<(Lines, isize)>,
+    ) -> isize {
+        let len = lines.len() as isize;
+        let connected = parent.is_some();
+        let list = LineList::new(lines, parent);
+        let mut m = Machine::new(list.clone(), 0, offset);
         m.run(doc, State::Body);
-        m.abs_line_offset()
+        let new_offset = m.abs_line_offset();
+        let added = LineList::get(&list).len() as isize - len;
+        self.refresh();
+        if connected && added != 0 {
+            self.next_line(doc, added);
+        }
+        new_offset
     }
 
     /// Runs a nested machine for the rest of a list (or other compound
@@ -523,12 +660,12 @@ impl Machine {
     pub(crate) fn nested_list_parse(
         &self,
         doc: &mut Document,
-        (data, lo, offset): (Rc<[Line]>, usize, isize),
+        (list, lo, offset): (Lines, usize, isize),
         state: State,
         blank_finish: bool,
         setup: impl FnOnce(&mut Machine),
     ) -> (isize, bool) {
-        let mut m = Machine::new(data, lo, offset);
+        let mut m = Machine::new(list, lo, offset);
         m.blank_finish = blank_finish;
         setup(&mut m);
         m.run(doc, state);
@@ -646,6 +783,7 @@ pub(crate) fn trim_line(line: &Line, n: usize) -> Line {
             (line.span.start + removed).min(line.span.end),
             line.span.end,
         ),
+        origin: line.origin.clone(),
     }
 }
 

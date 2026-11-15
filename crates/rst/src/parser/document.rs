@@ -43,7 +43,7 @@ impl Style {
 }
 
 /// How a message's line number is found.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) enum At {
     /// An absolute line number (or the current line, if `None`) looked up
     /// through the top-level state machine, as docutils' reporter does.
@@ -53,6 +53,8 @@ pub(crate) enum At {
     TopSigned(isize),
     /// Exactly this line (or no line).
     Exact(Option<usize>),
+    /// This source (`None` for the document) and line.
+    Source(Option<std::rc::Rc<str>>, Option<usize>),
 }
 
 impl At {
@@ -88,6 +90,7 @@ struct Frame {
 pub(crate) const INFO: i64 = 1;
 pub(crate) const WARNING: i64 = 2;
 pub(crate) const ERROR: i64 = 3;
+pub(crate) const SEVERE: i64 = 4;
 
 fn level_name(level: i64) -> &'static str {
     match level {
@@ -99,17 +102,27 @@ fn level_name(level: i64) -> &'static str {
     }
 }
 
+/// An `include` directive's `start-line`, `end-line`, `start-after` and
+/// `end-before` options.
+pub(crate) type IncludeClip = (Option<i64>, Option<i64>, Option<String>, Option<String>);
+
 /// The document being parsed.
 pub(crate) struct Document {
     stack: Vec<Frame>,
     source: Option<String>,
-    /// The number of input lines (the top-level state machine's).
-    pub(crate) top_len: usize,
+    /// The top-level state machine's lines, where docutils' reporter
+    /// looks up the source and line of a message.
+    pub(crate) top_lines: Option<super::machine::Lines>,
     /// The top-level state machine's current line offset.
     pub(crate) top_offset: isize,
     /// The line of the state machine that moved last (docutils'
-    /// `document.current_line`).
+    /// `document.current_line`), and its source (`None` for the document
+    /// itself).
     pub(crate) current_line: Option<usize>,
+    pub(crate) current_source: Option<std::rc::Rc<str>>,
+    /// The files being included, outermost first, with their clipping
+    /// options (docutils' `include_log`).
+    pub(crate) include_log: Vec<(String, IncludeClip)>,
     pub(crate) title_styles: Vec<Style>,
     pub(crate) names: HashMap<String, Option<Key>>,
     /// The id each name refers to (`None` for a duplicate name).
@@ -137,16 +150,23 @@ pub(crate) struct Document {
 }
 
 impl Document {
-    pub(crate) fn new(root: Element, source: Option<String>, top_len: usize) -> Self {
+    /// The document's source name.
+    pub(crate) fn source(&self) -> Option<&str> {
+        self.source.as_deref()
+    }
+
+    pub(crate) fn new(root: Element, source: Option<String>) -> Self {
         Self {
             stack: vec![Frame {
                 element: root,
                 at: None,
             }],
             source,
-            top_len,
+            top_lines: None,
             top_offset: -1,
             current_line: None,
+            current_source: None,
+            include_log: Vec::new(),
             title_styles: Vec::new(),
             names: HashMap::new(),
             nameids: HashMap::new(),
@@ -351,33 +371,42 @@ impl Document {
 
     // -- messages ---------------------------------------------------------
 
-    /// A line number as the top-level state machine reports it: `offset`
-    /// is looked up in its lines, with Python's indexing rules.
-    fn top_line(&self, offset: isize) -> Option<usize> {
-        let len = self.top_len as isize;
-        if (0..len).contains(&offset) || (offset == len && len > 0) {
-            Some((offset + 1) as usize)
+    /// The source (`None` for the document) and line of absolute line
+    /// offset `offset`, as the top-level state machine finds them
+    /// (docutils' `get_source_and_line`, with Python's indexing rules).
+    fn source_and_line(&self, offset: isize) -> Option<(Option<std::rc::Rc<str>>, i64)> {
+        let lines = super::machine::LineList::get(self.top_lines.as_ref()?);
+        let len = lines.len() as isize;
+        let (index, past_end) = if (0..len).contains(&offset) {
+            (offset, 0)
         } else if (-len..0).contains(&offset) {
-            Some((len + offset + 1) as usize)
+            (len + offset, 0)
+        } else if offset == len && len > 0 {
+            // "Just past the end": the last line's, plus one.
+            (len - 1, 1)
         } else {
-            None
-        }
+            return None;
+        };
+        let origin = &lines[index as usize].origin;
+        Some((origin.source.clone(), origin.offset as i64 + 1 + past_end))
     }
 
     /// A `system_message` element.
     pub(crate) fn message(&self, level: i64, text: &str, children: Vec<Node>, at: At) -> Element {
-        let line = match at {
-            // A line the lookup cannot find is kept as given.
-            At::Top(Some(line)) => self
-                .top_line(line as isize - 1)
-                .map(|l| l as i64)
-                .or(Some(line as i64)),
-            At::TopSigned(line) => self
-                .top_line(line - 1)
-                .map(|l| l as i64)
-                .or(Some(line as i64)),
-            At::Top(None) => self.top_line(self.top_offset).map(|l| l as i64),
-            At::Exact(line) => line.map(|l| l as i64),
+        // A line the lookup cannot find is kept as given.
+        let lookup = |line: isize| match self.source_and_line(line - 1) {
+            Some((source, line)) => (source, Some(line)),
+            None => (None, Some(line as i64)),
+        };
+        let (source, line) = match at {
+            At::Top(Some(line)) => lookup(line as isize),
+            At::TopSigned(line) => lookup(line),
+            At::Top(None) => match self.source_and_line(self.top_offset) {
+                Some((source, line)) => (source, Some(line)),
+                None => (None, None),
+            },
+            At::Exact(line) => (None, line.map(|l| l as i64)),
+            At::Source(source, line) => (source, line.map(|l| l as i64)),
         };
         let mut msg = Element::new(Kind::SystemMessage)
             .with_attr("level", level)
@@ -385,8 +414,8 @@ impl Document {
         if let Some(line) = line {
             msg.attributes.set("line", line);
         }
-        if let Some(source) = &self.source {
-            msg.attributes.set("source", source.as_str());
+        if let Some(source) = source.as_deref().or(self.source.as_deref()) {
+            msg.attributes.set("source", source);
         }
         msg.children.push(paragraph(text).into());
         msg.children.extend(children);

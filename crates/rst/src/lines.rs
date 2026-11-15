@@ -4,6 +4,8 @@
 //! `str.splitlines` knows, tabs are expanded to 8-column stops, and trailing
 //! whitespace is removed. Each line remembers where it came from.
 
+use std::rc::Rc;
+
 use crate::nodes::Span;
 
 /// Tab stops are every 8 columns, as in docutils' default `tab_width`.
@@ -16,6 +18,17 @@ pub struct Line {
     pub text: String,
     /// Where the line is in the input, without its line ending.
     pub span: Span,
+    /// The file the line comes from (`None` for the document itself) and
+    /// its offset there, as docutils' `StringList` items record them.
+    pub(crate) origin: LineOrigin,
+}
+
+/// Where a line comes from: an included file (or the document itself), and
+/// the line's offset in it.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct LineOrigin {
+    pub(crate) source: Option<Rc<str>>,
+    pub(crate) offset: isize,
 }
 
 impl Line {
@@ -70,9 +83,9 @@ fn split_with_offsets(text: &str) -> impl Iterator<Item = (usize, &str)> {
     })
 }
 
-/// Expands tabs to [`TAB_WIDTH`]-column stops, like Python's
-/// `str.expandtabs`.
-fn expand_tabs(line: &str) -> String {
+/// Expands tabs to `width`-column stops, like Python's `str.expandtabs`
+/// (which removes them for a width of 0).
+pub(crate) fn expand_tabs_to(line: &str, width: usize) -> String {
     if !line.contains('\t') {
         return line.to_owned();
     }
@@ -80,7 +93,10 @@ fn expand_tabs(line: &str) -> String {
     let mut column = 0;
     for c in line.chars() {
         if c == '\t' {
-            let spaces = TAB_WIDTH - column % TAB_WIDTH;
+            if width == 0 {
+                continue;
+            }
+            let spaces = width - column % width;
             out.extend(std::iter::repeat_n(' ', spaces));
             column += spaces;
         } else {
@@ -98,18 +114,35 @@ pub(crate) fn is_python_whitespace(c: char) -> bool {
 
 /// The input as lines, ready for parsing.
 pub fn lines(text: &str) -> Vec<Line> {
+    lines_with(text, TAB_WIDTH, None, None)
+}
+
+/// The lines of `text` with tab stops every `tab_width` columns (0
+/// removes tabs, as Python's `expandtabs(0)` does), from `source`. With `span`, every line gets that span instead of
+/// its place in `text` (lines from an included file).
+pub(crate) fn lines_with(
+    text: &str,
+    tab_width: usize,
+    source: Option<Rc<str>>,
+    span: Option<Span>,
+) -> Vec<Line> {
     split_with_offsets(text)
-        .map(|(start, raw)| {
+        .enumerate()
+        .map(|(i, (start, raw))| {
             let normalized: String = raw
                 .chars()
-                .map(|c| if matches!(c, '\x0b' | '\x0c') { ' ' } else { c })
+                .map(|c| if matches!(c, '' | '') { ' ' } else { c })
                 .collect();
-            let text = expand_tabs(&normalized)
+            let text = expand_tabs_to(&normalized, tab_width)
                 .trim_end_matches(is_python_whitespace)
                 .to_owned();
             Line {
                 text,
-                span: Span::new(start, start + raw.len()),
+                span: span.unwrap_or(Span::new(start, start + raw.len())),
+                origin: LineOrigin {
+                    source: source.clone(),
+                    offset: i as isize,
+                },
             }
         })
         .collect()

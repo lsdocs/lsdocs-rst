@@ -6,7 +6,7 @@ use super::options::{Opt, OptValue};
 use super::{Call, Failure, failure};
 use crate::lines::Line;
 use crate::nodes::{Element, Kind, Node};
-use crate::parser::document::{Document, ERROR, MsgNode, WARNING};
+use crate::parser::document::{Document, ERROR, MsgNode, SEVERE, WARNING};
 use crate::parser::inline::{Origin, inline_text};
 use crate::parser::machine::Machine;
 use crate::parser::table::{TableData, Widths};
@@ -272,6 +272,24 @@ fn dialect(call: &Call) -> Dialect {
     }
 }
 
+/// The lines of a CSV file, as they are (`str.splitlines`), with empty
+/// spans at the directive.
+fn file_lines(text: &str, source: &str, call: &Call) -> Vec<Line> {
+    let at = call.span.map_or(0, |s| s.start);
+    let source: std::rc::Rc<str> = std::rc::Rc::from(source);
+    crate::lines::split_lines(text)
+        .enumerate()
+        .map(|(i, t)| Line {
+            text: t.to_owned(),
+            span: crate::nodes::Span::new(at, at),
+            origin: crate::lines::LineOrigin {
+                source: Some(source.clone()),
+                offset: i as isize,
+            },
+        })
+        .collect()
+}
+
 /// A CSV row: its cells' lines.
 type CsvRow = Vec<Vec<Line>>;
 
@@ -281,25 +299,53 @@ pub(super) fn csv_table(
     doc: &mut Document,
     call: &mut Call,
 ) -> Result<Vec<Node>, Failure> {
-    if call.has("file") || call.has("url") {
+    let name = call.name.clone();
+    let (file, url) = (call.has("file"), call.has("url"));
+    if doc.extensions.loader.is_none() && (file || url) {
         return Err(failure(
             WARNING,
-            format!(
-                "File and URL access deactivated; ignoring \"{}\" directive.",
-                call.name
-            ),
+            format!("File and URL access deactivated; ignoring \"{name}\" directive."),
         ));
     }
     let (title, messages) = make_title(doc, call);
-    if call.content.is_empty() {
+    let data: Vec<Line> = if !call.content.is_empty() {
+        if file || url {
+            return Err(failure(
+                ERROR,
+                format!(
+                    "\"{name}\" directive may not both specify an external file and have content."
+                ),
+            ));
+        }
+        call.content.clone()
+    } else if let Some(OptValue::Str(path)) = call.option("file").cloned() {
+        if url {
+            return Err(failure(
+                ERROR,
+                format!(
+                    "The \"file\" and \"url\" options may not be simultaneously specified for the \"{name}\" directive."
+                ),
+            ));
+        }
+        let path = super::include::resolve(doc, &path);
+        let text = super::include::read_csv_file(doc, &path, call)?;
+        file_lines(&text, &path, call)
+    } else if let Some(OptValue::Str(url)) = call.option("url").cloned() {
+        let text = super::include::read_url(doc, &url, call)
+            .map_err(|e| {
+                failure(
+                    SEVERE,
+                    format!("Problems with \"{name}\" directive URL \"{url}\":\n{e}."),
+                )
+            })?
+            .map_err(|e| failure(ERROR, format!("Problem with \"{name}\" directive:\n{e}")))?;
+        file_lines(&text, &url, call)
+    } else {
         return Err(failure(
             WARNING,
-            format!(
-                "The \"{}\" directive requires content; none supplied.",
-                call.name
-            ),
+            format!("The \"{name}\" directive requires content; none supplied."),
         ));
-    }
+    };
     let d = dialect(call);
     let csv_error = |e: String| {
         failure(
@@ -312,7 +358,8 @@ pub(super) fn csv_table(
         let mut out = Vec::new();
         let mut max_cols = 0;
         for (fields, start) in rows {
-            let span = lines.get(start).map(|l| l.span).unwrap_or_default();
+            let first = lines.get(start).cloned().unwrap_or_default();
+            let span = first.span;
             max_cols = max_cols.max(fields.len());
             out.push(
                 fields
@@ -322,6 +369,7 @@ pub(super) fn csv_table(
                             .map(|t| Line {
                                 text: t.to_owned(),
                                 span,
+                                origin: first.origin.clone(),
                             })
                             .collect()
                     })
@@ -338,8 +386,8 @@ pub(super) fn csv_table(
         head.extend(rows);
         max_header_cols = cols;
     }
-    let texts: Vec<String> = call.content.iter().map(|l| l.text.clone()).collect();
-    let (rows, max_cols) = read(&texts, &call.content).map_err(csv_error)?;
+    let texts: Vec<String> = data.iter().map(|l| l.text.clone()).collect();
+    let (rows, max_cols) = read(&texts, &data).map_err(csv_error)?;
     let max_cols = max_cols.max(max_header_cols);
     let header_rows = int_option(call, "header-rows");
     let stub_columns = int_option(call, "stub-columns");

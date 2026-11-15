@@ -26,6 +26,7 @@ pub(crate) use directives::DirectiveRun;
 pub(crate) use roles::RoleRun;
 
 use crate::extension::{Directive, Role};
+use crate::files::FileLoader;
 use crate::lines::lines;
 use crate::nodes::{Element, Kind, Span};
 
@@ -40,10 +41,12 @@ pub(crate) struct Extensions {
     pub(crate) keep_unknown: bool,
     /// Run docutils' transforms after parsing.
     pub(crate) transforms: bool,
+    /// Reads files for `include` and the `:file:` options.
+    pub(crate) loader: Option<Arc<dyn FileLoader>>,
 }
 
 /// The longest line docutils parses (its `line_length_limit` setting).
-const LINE_LENGTH_LIMIT: usize = 10_000;
+pub(crate) const LINE_LENGTH_LIMIT: usize = 10_000;
 
 /// Parses reStructuredText. Settings such as the source name are set on the
 /// parser; [`crate::parse`] uses the defaults.
@@ -64,6 +67,8 @@ impl std::fmt::Debug for Parser {
             .field("directives", &directives)
             .field("roles", &roles)
             .field("keep_unknown_directives", &self.extensions.keep_unknown)
+            .field("transforms", &self.extensions.transforms)
+            .field("file_loader", &self.extensions.loader.is_some())
             .finish()
     }
 }
@@ -109,6 +114,20 @@ impl Parser {
         self
     }
 
+    /// Lets directives read files through `loader`: `include`, and `raw`
+    /// and `csv-table` with a `:file:` or `:url:` option. Without a loader
+    /// (the default), they are reported as disabled, as docutils does
+    /// with `file_insertion_enabled` off.
+    ///
+    /// Nodes from an included file have an empty span at the start of
+    /// the `include` directive, so spans always refer to the parsed text;
+    /// messages about included text give the included file's name and
+    /// line.
+    pub fn file_loader(mut self, loader: impl FileLoader + 'static) -> Self {
+        Arc::make_mut(&mut self.extensions).loader = Some(Arc::new(loader));
+        self
+    }
+
     /// With `transforms`, the tree is also transformed the way docutils'
     /// `publish_doctree` does it: references resolved, footnotes numbered,
     /// substitutions replaced, `pending` elements processed. Without (the
@@ -127,7 +146,7 @@ impl Parser {
             root.attributes.set("source", source.as_str());
         }
         let lines = lines(text);
-        let mut doc = document::Document::new(root, self.source.clone(), lines.len());
+        let mut doc = document::Document::new(root, self.source.clone());
         doc.extensions = self.extensions.clone();
         // docutils refuses to parse input with very long lines.
         if let Some(i) = lines
@@ -142,7 +161,7 @@ impl Parser {
             );
             doc.append(msg);
         } else {
-            let mut top = machine::Machine::top(lines);
+            let mut top = machine::Machine::top(&mut doc, lines);
             top.run(&mut doc, machine::State::Body);
         }
         let mut root = doc.finish(self.extensions.transforms);

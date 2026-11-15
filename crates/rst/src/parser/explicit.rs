@@ -157,10 +157,18 @@ impl Machine {
     /// A comment: the explicit markup block's text.
     fn comment(&mut self, doc: &mut Document, line: &str, end: usize) -> Construct {
         let start = self.line_offset;
-        if self.is_next_line_blank() && strip(skip_chars(line, end)).is_empty() {
-            let mut c = fixed(Kind::Comment, "", None);
-            c.span = self.span(start, start);
-            return (vec![c.into()], true);
+        if self.is_next_line_blank() {
+            let first = skip_chars(line, end);
+            if strip(first).is_empty() {
+                let mut c = fixed(Kind::Comment, "", None);
+                c.span = self.span(start, start);
+                return (vec![c.into()], true);
+            }
+            // The comment `include` puts after an included file's lines.
+            if first.starts_with("end of inclusion from \"") {
+                doc.include_log.pop();
+                return (Vec::new(), true);
+            }
         }
         let (mut indented, _, _, blank_finish) =
             self.get_first_known_indented(doc, end, false, true, true);
@@ -370,7 +378,7 @@ impl Machine {
         doc.open(node, false);
         let (_, blank_finish) = self.nested_list_parse(
             doc,
-            (std::rc::Rc::from(block), 0, offset),
+            (super::machine::LineList::new(block, None), 0, offset),
             State::SubstitutionDef,
             blank_finish,
             |_| {},

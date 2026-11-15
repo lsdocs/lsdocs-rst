@@ -1,0 +1,11 @@
+Included *para* with a `bad ref.
+
+START
+
+Between markers.
+
+END
+
+* list item
+
+  .. include:: inner.txt

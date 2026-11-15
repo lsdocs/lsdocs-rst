@@ -301,7 +301,10 @@ impl Machine {
                 ERROR,
                 "Unexpected section title.",
                 vec![fixed(Kind::LiteralBlock, &blocktext, span).into()],
-                At::Exact(Some(self.abs_line_number())),
+                {
+                    let (source, line) = self.source_and_line();
+                    At::Source(source, line)
+                },
             );
             doc.extend(messages);
             doc.append(msg);

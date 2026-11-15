@@ -368,7 +368,7 @@ fn assert_has_content(call: &Call) -> Result<(), Failure> {
 
 /// Sets the `classes` from the `class` option (docutils'
 /// `normalize_options`).
-fn set_classes(node: &mut Element, call: &Call) {
+pub(super) fn set_classes(node: &mut Element, call: &Call) {
     for class in call.classes() {
         node.attributes.push("classes", class);
     }
@@ -376,7 +376,7 @@ fn set_classes(node: &mut Element, call: &Call) {
 
 /// The `name` option becomes a target name of `node` (docutils'
 /// `add_name`).
-fn add_name(doc: &mut Document, call: &mut Call, node: &mut Element) {
+pub(super) fn add_name(doc: &mut Document, call: &mut Call, node: &mut Element) {
     if let Some(name) = call.take("name") {
         let name = normalize_name(name.as_str().unwrap_or(""));
         node.attributes.remove("name");
@@ -590,6 +590,23 @@ fn parsed_literal(
 fn code(_: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
     assert_has_content(call)?;
     let language = call.arguments.first().cloned().unwrap_or_default();
+    let text = call.content_text();
+    let lines = call.content.len();
+    Ok(vec![
+        code_block(doc, call, &language, &text, lines, None).into(),
+    ])
+}
+
+/// A `code` directive's literal block for `text` (`lines` lines long, as
+/// the directive counts them), from file `source` if it was included.
+pub(super) fn code_block(
+    doc: &mut Document,
+    call: &mut Call,
+    language: &str,
+    text: &str,
+    lines: usize,
+    source: Option<&str>,
+) -> Element {
     let mut node = fixed(Kind::LiteralBlock, "", call.span);
     node.attributes.push("classes", "code");
     if !language.is_empty() {
@@ -597,36 +614,43 @@ fn code(_: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node
     }
     set_classes(&mut node, call);
     add_name(doc, call, &mut node);
-    let text = call.content_text();
+    if let Some(source) = source {
+        node.attributes.set("source", source);
+    }
     match call.option("number-lines") {
         Some(start) => {
             let start = match start {
                 OptValue::Int(n) => *n,
                 _ => 1,
             };
-            let end = start + call.content.len() as i64;
-            let width = end.to_string().len();
-            let ln = |n: i64| -> Node {
-                Element::new(Kind::Inline)
-                    .with_attr("classes", vec!["ln".to_owned()])
-                    .with_child(Text::new(format!("{n:>width$} "), None))
-                    .into()
-            };
-            let mut lineno = start;
-            node.children.push(ln(lineno));
-            let parts: Vec<&str> = text.split('\n').collect();
-            for part in &parts[..parts.len() - 1] {
-                node.children
-                    .push(Text::new(format!("{part}\n"), None).into());
-                lineno += 1;
-                node.children.push(ln(lineno));
-            }
-            node.children
-                .push(Text::new(*parts.last().unwrap(), None).into());
+            number_lines(&mut node, text, start, start + lines as i64);
         }
         None => node.children.push(Text::new(text, call.span).into()),
     }
-    Ok(vec![node.into()])
+    node
+}
+
+/// Adds `text` to `node` with line numbers from `start`, padded to the
+/// width of `end` (docutils' `NumberLines`).
+pub(super) fn number_lines(node: &mut Element, text: &str, start: i64, end: i64) {
+    let width = end.to_string().len();
+    let ln = |n: i64| -> Node {
+        Element::new(Kind::Inline)
+            .with_attr("classes", vec!["ln".to_owned()])
+            .with_child(Text::new(format!("{n:>width$} "), None))
+            .into()
+    };
+    let mut lineno = start;
+    node.children.push(ln(lineno));
+    let parts: Vec<&str> = text.split('\n').collect();
+    for part in &parts[..parts.len() - 1] {
+        node.children
+            .push(Text::new(format!("{part}\n"), None).into());
+        lineno += 1;
+        node.children.push(ln(lineno));
+    }
+    node.children
+        .push(Text::new(*parts.last().unwrap(), None).into());
 }
 
 fn math(_: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
@@ -789,10 +813,23 @@ fn figure(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<No
     }
     let mut figure = Element::new(Kind::Figure).with_child(image_node);
     figure.span = call.span;
-    if let Some(OptValue::Str(w)) = &figwidth
-        && w != "image"
-    {
-        figure.attributes.set("width", w.clone());
+    match &figwidth {
+        // The image's own width, if it can be read (docutils needs PIL).
+        Some(OptValue::Str(w)) if w == "image" => {
+            let uri = figure
+                .elements()
+                .next()
+                .and_then(|i| i.attributes.get_str("uri"))
+                .map(str::to_owned);
+            if let (Some(loader), Some(uri)) = (doc.extensions.loader.clone(), uri)
+                && let Ok(bytes) = loader.read_file(&uri)
+                && let Some(width) = crate::files::image_width(&bytes)
+            {
+                figure.attributes.set("width", format!("{width}px"));
+            }
+        }
+        Some(OptValue::Str(w)) => figure.attributes.set("width", w.clone()),
+        _ => {}
     }
     if let Some(classes) = figclasses {
         for c in classes.as_list() {
@@ -852,28 +889,65 @@ fn figure(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<No
     Ok(vec![figure.into()])
 }
 
-fn raw(_: &mut Machine, _: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
-    if call.has("file") || call.has("url") {
-        return Err(failure(
-            WARNING,
-            format!("\"{}\" directive disabled.", call.name),
-        ));
+fn raw(_: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
+    let name = call.name.clone();
+    let (file, url) = (call.has("file"), call.has("url"));
+    if doc.extensions.loader.is_none() && (file || url) {
+        return Err(failure(WARNING, format!("\"{name}\" directive disabled.")));
     }
     let format = split_whitespace(&call.arguments[0].to_lowercase())
         .collect::<Vec<_>>()
         .join(" ");
-    assert_has_content(call)?;
-    let mut node = fixed(Kind::Raw, &call.content_text(), call.span);
+    let mut source = None;
+    let text = if !call.content.is_empty() {
+        if file || url {
+            return Err(failure(
+                ERROR,
+                format!(
+                    "\"{name}\" directive may not both specify an external file and have content."
+                ),
+            ));
+        }
+        call.content_text()
+    } else if let Some(OptValue::Str(path)) = call.option("file").cloned() {
+        if url {
+            return Err(failure(
+                ERROR,
+                format!(
+                    "The \"file\" and \"url\" options may not be simultaneously specified for the \"{name}\" directive."
+                ),
+            ));
+        }
+        let path = super::include::resolve(doc, &path);
+        let text = super::include::read_file(doc, &name, &path, call)?;
+        source = Some(path);
+        text
+    } else if let Some(OptValue::Str(url)) = call.option("url").cloned() {
+        let text = super::include::read_url(doc, &url, call).map_err(|e| {
+            failure(
+                ERROR,
+                format!("Problems with \"{name}\" directive URL \"{url}\":\n{e}."),
+            )
+        })?;
+        let text =
+            text.map_err(|e| failure(ERROR, format!("Problem with \"{name}\" directive:\n{e}")))?;
+        source = Some(url);
+        text
+    } else {
+        assert_has_content(call)?;
+        String::new()
+    };
+    let mut node = fixed(Kind::Raw, &text, call.span);
     set_classes(&mut node, call);
     node.attributes.set("format", format);
+    if let Some(source) = source {
+        node.attributes.set("source", source);
+    }
     Ok(vec![node.into()])
 }
 
-fn include(_: &mut Machine, _: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
-    Err(failure(
-        WARNING,
-        format!("\"{}\" directive disabled.", call.name),
-    ))
+fn include(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
+    super::include::include(m, doc, call)
 }
 
 fn replace(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
@@ -1146,7 +1220,7 @@ fn meta(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node
     let (offset, _) = m.nested_list_parse(
         doc,
         (
-            std::rc::Rc::from(call.content.clone()),
+            super::super::machine::LineList::new(call.content.clone(), None),
             0,
             call.content_offset,
         ),

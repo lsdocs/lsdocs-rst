@@ -98,6 +98,7 @@ impl TableLine {
                 (start + text.len()).min(self.line.span.end.max(start)),
             ),
             text,
+            origin: self.line.origin.clone(),
         }
     }
 }
@@ -795,6 +796,7 @@ impl Machine {
             .map(|tl| Line {
                 text: tl.text(),
                 span: tl.line.span,
+                origin: tl.line.origin.clone(),
             })
             .collect();
         let data = super::machine::join(&lines);
@@ -1000,7 +1002,7 @@ impl Machine {
             entry.span = span_of(&block);
             doc.open(entry, true);
             if block.iter().any(|l| !l.text.is_empty()) {
-                self.nested_parse(doc, block, tableline + offset as isize - 1);
+                self.nested_parse_detached(doc, block, tableline + offset as isize - 1);
             }
             doc.close();
         }

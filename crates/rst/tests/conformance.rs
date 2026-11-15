@@ -62,7 +62,13 @@ fn check(extension: &str, pending_file: &str, parser: lsdocs_rst::Parser) {
             failures.push(format!("{name}: no expected output; run `nur gen rst`"));
             continue;
         };
-        let actual = parser.parse(&text).pformat();
+        // `file_*` cases may read files, from the cases directory.
+        let actual = if name.starts_with("file_") {
+            let loader = lsdocs_rst::DirectoryLoader::new(cases_dir());
+            parser.clone().file_loader(loader).parse(&text).pformat()
+        } else {
+            parser.parse(&text).pformat()
+        };
         let matches = actual == expected;
         match (matches, pending.contains(&name)) {
             (true, false) => passed += 1,

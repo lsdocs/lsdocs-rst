@@ -19,12 +19,14 @@
 //!
 //! **Status:** early. The parser handles the block structure (sections,
 //! lists, tables, explicit markup and the rest), inline markup with the
-//! standard roles, and the standard directives, each checked against
-//! docutils' own output (see `tests/conformance.rs`); docutils'
-//! transforms are being added. Callers can add directives and roles (see
-//! [`extension`]).
+//! standard roles, the standard directives and, optionally, docutils'
+//! transforms ([`Parser::transforms`]), each checked against docutils' own
+//! output (see `tests/conformance.rs`). Callers can add directives and
+//! roles (see [`extension`]) and let directives read files (see
+//! [`files`]).
 
 pub mod extension;
+pub mod files;
 pub mod lines;
 pub mod nodes;
 mod parser;
@@ -37,6 +39,7 @@ pub use extension::{
     Directive, DirectiveContext, DirectiveError, DirectiveSpec, OptionKind, OptionValue, Role,
     RoleContext,
 };
+pub use files::{DirectoryLoader, FileLoader};
 pub use nodes::{AttrValue, Attributes, Element, Kind, Node, Span, Text};
 pub use parser::Parser;
 

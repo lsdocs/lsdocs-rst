@@ -1,0 +1,135 @@
+<document ids="title" names="title" source="test data" title="Title">
+    <title>
+        Title
+    <paragraph>
+        Before.
+    <paragraph>
+        Included 
+        <emphasis>
+            para
+         with a 
+        <problematic ids="problematic-1" refid="system-message-1">
+            `
+        bad ref.
+    <system_message backrefs="problematic-1" ids="system-message-1" level="2" line="1" source="files/part.txt" type="WARNING">
+        <paragraph>
+            Inline interpreted text or phrase reference start-string without end-string.
+    <paragraph>
+        START
+    <paragraph>
+        Between markers.
+    <paragraph>
+        END
+    <bullet_list bullet="*">
+        <list_item>
+            <paragraph>
+                list item
+            <paragraph>
+                Inner file, 
+                <problematic ids="problematic-2" refid="system-message-2">
+                    `
+                oops.
+            <system_message backrefs="problematic-2" ids="system-message-2" level="2" line="1" source="files/inner.txt" type="WARNING">
+                <paragraph>
+                    Inline interpreted text or phrase reference start-string without end-string.
+            <system_message level="3" line="4" source="files/inner.txt" type="ERROR">
+                <paragraph>
+                    Unexpected section title.
+                <literal_block xml:space="preserve">
+                    Inner section
+                    -------------
+            <paragraph>
+                Text.
+    <paragraph>
+        After the include 
+        <problematic ids="problematic-3" refid="system-message-3">
+            `
+        bad.
+    <system_message backrefs="problematic-3" ids="system-message-3" level="2" line="8" source="test data" type="WARNING">
+        <paragraph>
+            Inline interpreted text or phrase reference start-string without end-string.
+    <system_message level="3" line="10" source="test data" type="ERROR">
+        <paragraph>
+            Problems with "include" directive path:
+            InputError: [Errno 2] No such file or directory: 'files/missing.txt'.
+        <literal_block xml:space="preserve">
+            .. include:: files/missing.txt
+    <paragraph>
+        Between markers.
+    <literal_block source="files/part.txt" xml:space="preserve">
+        <inline classes="ln">
+             3 
+        Included *para* with a `bad ref.
+        <inline classes="ln">
+             4 
+        
+        <inline classes="ln">
+             5 
+        START
+        <inline classes="ln">
+             6 
+        
+        <inline classes="ln">
+             7 
+        Between markers.
+        <inline classes="ln">
+             8 
+        
+        <inline classes="ln">
+             9 
+        END
+        <inline classes="ln">
+            10 
+        
+        <inline classes="ln">
+            11 
+        * list item
+        <inline classes="ln">
+            12 
+        
+        <inline classes="ln">
+            13 
+          .. include:: inner.txt
+    <literal_block classes="code python" source="files/code.txt" xml:space="preserve">
+        <inline classes="ln">
+            1 
+        def f():
+        <inline classes="ln">
+            2 
+                return 1
+    <literal_block classes="c" ids="lit" names="lit" source="files/code.txt" xml:space="preserve">
+        def f():
+          return 1
+    <literal_block source="files/part.txt" xml:space="preserve">
+        START
+        
+        Between markers.
+        
+        END
+    <system_message level="3" line="35" source="test data" type="ERROR">
+        <paragraph>
+            Problem with "start-after" option of "include" directive:
+            Text not found.
+        <literal_block xml:space="preserve">
+            .. include:: files/part.txt
+               :start-after: nowhere
+    <system_message level="3" line="38" source="test data" type="ERROR">
+        <paragraph>
+            Error in "include" directive:
+            no content permitted.
+        <literal_block xml:space="preserve">
+            .. include:: files/self.txt
+            
+               Quote with include:
+            
+               .. include:: files/inner.txt
+            
+               After `quote include.
+    <paragraph>
+        Text after 
+        <problematic ids="problematic-4" refid="system-message-4">
+            `
+        x.
+    <system_message backrefs="problematic-4" ids="system-message-4" level="2" line="46" source="test data" type="WARNING">
+        <paragraph>
+            Inline interpreted text or phrase reference start-string without end-string.

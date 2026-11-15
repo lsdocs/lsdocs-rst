@@ -1,0 +1,82 @@
+<document source="test data">
+    <raw format="html" source="files/raw.txt" xml:space="preserve">
+        <b>raw
+        html</b>
+    <raw format="html" source="files/latin1.txt" xml:space="preserve">
+        café
+    <system_message level="3" line="8" source="test data" type="ERROR">
+        <paragraph>
+            Problem with "raw" directive:
+            UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe9 in position 3: invalid continuation byte
+        <literal_block xml:space="preserve">
+            .. raw:: html
+               :file: files/latin1.txt
+    <system_message level="3" line="11" source="test data" type="ERROR">
+        <paragraph>
+            Problems with "raw" directive path:
+            InputError: [Errno 2] No such file or directory: 'files/missing.txt'.
+        <literal_block xml:space="preserve">
+            .. raw:: html
+               :file: files/missing.txt
+    <system_message level="3" line="14" source="test data" type="ERROR">
+        <paragraph>
+            "raw" directive may not both specify an external file and have content.
+        <literal_block xml:space="preserve">
+            .. raw:: html
+               :file: files/raw.txt
+            
+               content too
+    <system_message level="3" line="19" source="test data" type="ERROR">
+        <paragraph>
+            The "file" and "url" options may not be simultaneously specified for the "raw" directive.
+        <literal_block xml:space="preserve">
+            .. raw:: html
+               :file: files/raw.txt
+               :url: http://example.org/x
+    <table>
+        <title>
+            From a file
+        <tgroup cols="2">
+            <colspec colwidth="50">
+            <colspec colwidth="50">
+            <thead>
+                <row>
+                    <entry>
+                        <paragraph>
+                            a
+                    <entry>
+                        <paragraph>
+                            b, c
+            <tbody>
+                <row>
+                    <entry>
+                        <paragraph>
+                            1
+                    <entry>
+                        <paragraph>
+                            2
+                <row>
+                    <entry>
+                        <paragraph>
+                            <emphasis>
+                                em
+                    <entry>
+                        <paragraph>
+                            x
+    <system_message level="4" line="27" source="test data" type="SEVERE">
+        <paragraph>
+            Problems with "csv-table" directive path:
+            [Errno 2] No such file or directory: 'files/missing.csv'.
+        <literal_block xml:space="preserve">
+            .. csv-table::
+               :file: files/missing.csv
+    <system_message level="3" line="30" source="test data" type="ERROR">
+        <paragraph>
+            "csv-table" directive may not both specify an external file and have content.
+        <literal_block xml:space="preserve">
+            .. csv-table::
+               :file: files/data.csv
+            
+               a,b
+    <literal_block source="files/latin1.txt" xml:space="preserve">
+        café

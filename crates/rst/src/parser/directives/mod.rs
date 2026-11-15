@@ -3,11 +3,10 @@
 //! running the directive.
 
 mod csv;
+mod include;
 pub(crate) mod options;
 mod standard;
 mod tables;
-
-use std::rc::Rc;
 
 use super::document::{At, Document, ERROR, INFO, fixed};
 use super::machine::{Machine, State, join, span_of};
@@ -472,7 +471,7 @@ impl Machine {
     ) -> Result<Vec<(String, OptValue)>, MarkupError> {
         let count = lines.len() as isize;
         doc.open(Element::new(Kind::FieldList), false);
-        let mut m = Machine::new(Rc::from(lines), 0, 0);
+        let mut m = Machine::detached(lines, 0);
         m.blank_finish = true;
         m.run(doc, State::ExtensionOptions);
         let field_list = doc.close().unwrap();

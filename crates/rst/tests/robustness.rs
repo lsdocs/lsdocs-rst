@@ -100,3 +100,49 @@ fn random_input_never_panics() {
         assert!(result.is_ok(), "panicked on input {text:?}");
     }
 }
+
+/// Random documents including random files (`a.rst` to `c.rst`, also
+/// from each other), with and without the transforms.
+#[test]
+fn random_includes_never_panic() {
+    let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
+    let includes = [
+        "\n.. include:: a.rst\n",
+        "\n.. include:: b.rst\n   :start-line: 1\n",
+        "\n   .. include:: c.rst\n",
+        "\n* .. include:: a.rst\n     :literal:\n",
+        "\n.. raw:: html\n   :file: b.rst\n",
+        "\n.. csv-table::\n   :file: c.rst\n",
+        "\n.. include:: missing.rst\n",
+    ];
+    let piece = |rng: &mut Rng| -> String {
+        let mut text = String::new();
+        for _ in 0..rng.below(40) {
+            if rng.below(6) == 0 {
+                text.push_str(includes[rng.below(includes.len())]);
+            } else {
+                text.push_str(PIECES[rng.below(PIECES.len())]);
+            }
+        }
+        text
+    };
+    for i in 0..1000 {
+        let files: std::collections::HashMap<String, String> = ["a.rst", "b.rst", "c.rst"]
+            .iter()
+            .map(|name| (name.to_string(), piece(&mut rng)))
+            .collect();
+        let text = piece(&mut rng);
+        let loader = move |path: &str| {
+            files
+                .get(path)
+                .map(|t| t.clone().into_bytes())
+                .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))
+        };
+        let parser = lsdocs_rst::Parser::new()
+            .file_loader(loader)
+            .transforms(i % 2 == 0);
+        let parse = std::panic::AssertUnwindSafe(|| parser.parse(&text).pformat());
+        let result = std::panic::catch_unwind(parse);
+        assert!(result.is_ok(), "panicked on input {text:?}");
+    }
+}

@@ -1,0 +1,6 @@
+Inner file, `oops.
+
+Inner section
+-------------
+
+Text.

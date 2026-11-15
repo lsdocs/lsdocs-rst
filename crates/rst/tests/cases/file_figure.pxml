@@ -1,0 +1,21 @@
+<document source="test data">
+    <figure width="37px">
+        <image uri="files/img.png">
+        <caption>
+            PNG.
+    <figure width="38px">
+        <image uri="files/img.gif">
+    <figure classes="c" width="39px">
+        <image uri="files/img.jpg">
+    <figure width="40px">
+        <image uri="files/img.bmp">
+    <figure width="41px">
+        <image uri="files/img.webp">
+    <figure width="23px">
+        <image uri="files/alpha.webp">
+    <figure>
+        <image uri="files/missing.png">
+    <figure>
+        <image uri="files/raw.txt">
+    <figure width="50%">
+        <image uri="files/img.png">
