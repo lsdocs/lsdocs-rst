@@ -41,6 +41,9 @@ pub(crate) enum At {
     /// An absolute line number (or the current line, if `None`) looked up
     /// through the top-level state machine, as docutils' reporter does.
     Top(Option<usize>),
+    /// Like `Top`, for a line number that may be out of range (docutils'
+    /// arithmetic can go below 1).
+    TopSigned(isize),
     /// Exactly this line (or no line).
     Exact(Option<usize>),
 }
@@ -267,15 +270,22 @@ impl Document {
     pub(crate) fn message(&self, level: i64, text: &str, children: Vec<Node>, at: At) -> Element {
         let line = match at {
             // A line the lookup cannot find is kept as given.
-            At::Top(Some(line)) => self.top_line(line as isize - 1).or(Some(line)),
-            At::Top(None) => self.top_line(self.top_offset),
-            At::Exact(line) => line,
+            At::Top(Some(line)) => self
+                .top_line(line as isize - 1)
+                .map(|l| l as i64)
+                .or(Some(line as i64)),
+            At::TopSigned(line) => self
+                .top_line(line - 1)
+                .map(|l| l as i64)
+                .or(Some(line as i64)),
+            At::Top(None) => self.top_line(self.top_offset).map(|l| l as i64),
+            At::Exact(line) => line.map(|l| l as i64),
         };
         let mut msg = Element::new(Kind::SystemMessage)
             .with_attr("level", level)
             .with_attr("type", level_name(level));
         if let Some(line) = line {
-            msg.attributes.set("line", line as i64);
+            msg.attributes.set("line", line);
         }
         if let Some(source) = &self.source {
             msg.attributes.set("source", source.as_str());

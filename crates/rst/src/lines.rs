@@ -10,7 +10,7 @@ use crate::nodes::Span;
 pub const TAB_WIDTH: usize = 8;
 
 /// A line of input, prepared for parsing.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Line {
     /// The text, tabs expanded and trailing whitespace removed.
     pub text: String,

@@ -1,0 +1,73 @@
+<document source="test data">
+    <table>
+        <tgroup cols="3">
+            <colspec colwidth="24">
+            <colspec colwidth="12">
+            <colspec colwidth="10">
+            <thead>
+                <row>
+                    <entry>
+                        <paragraph>
+                            Header 1
+                    <entry>
+                        <paragraph>
+                            Header 2
+                    <entry>
+                        <paragraph>
+                            Header 3
+            <tbody>
+                <row>
+                    <entry>
+                        <paragraph>
+                            body row 1, column 1
+                    <entry>
+                        <paragraph>
+                            column 2
+                    <entry>
+                        <paragraph>
+                            column 3
+                <row>
+                    <entry>
+                        <paragraph>
+                            body row 2
+                    <entry morecols="1">
+                        <paragraph>
+                            Spans two columns.
+                <row>
+                    <entry>
+                        <paragraph>
+                            body row 3
+                    <entry morerows="1">
+                        <paragraph>
+                            Cells may
+                            span rows.
+                    <entry morerows="1">
+                        <bullet_list bullet="-">
+                            <list_item>
+                                <paragraph>
+                                    Table
+                            <list_item>
+                                <paragraph>
+                                    cells
+                            <list_item>
+                                <paragraph>
+                                    <emphasis>
+                                        list
+                <row>
+                    <entry>
+                        <paragraph>
+                            body row 4
+    <table>
+        <tgroup cols="2">
+            <colspec colwidth="5">
+            <colspec colwidth="5">
+            <tbody>
+                <row>
+                    <entry>
+                        <paragraph>
+                            a
+                    <entry>
+                        <paragraph>
+                            b
+    <paragraph>
+        Text.

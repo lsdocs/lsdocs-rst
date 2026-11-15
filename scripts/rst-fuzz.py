@@ -3,8 +3,8 @@
 Generates random documents from fragments of block-level markup and
 sentences of inline markup, parses each with docutils and with lsdocs-rst
 (through the crate's `pformat` example), and compares the pseudo-XML.
-Directives are all unknown ones and there are no tables (lsdocs-rst does
-not support them yet).
+Directives are all unknown ones (lsdocs-rst does not run directives
+yet).
 
 Run through `nur fuzz rst`, which builds the example and pins the docutils
 version. Mismatches are written to `<work>/mismatch-<n>.{rst,want,got}`.
@@ -42,6 +42,13 @@ FRAGMENTS = [
     ".. __: anon_", ".. [#] ", ".. [2]", ".. |x|", ".. |y| nosuch::",
     "   continued", "      deep", "\t- tab bullet", "| ", "|  |",
     "Text\n\n::\n\n    lit", "Para::\n\n> q\n> r",
+    # Tables, whole and in pieces.
+    "+---+---+\n| a | b |\n+---+---+", "+---+\n| x |\n+===+\n| y |\n+---+",
+    "+-----+-----+\n| a   | b   |\n+-----+     +\n| c   | d   |\n+-----+-----+",
+    "+------+\n| - li |\n| - st |\n+------+", "=== ===\na   b\n=== ===",
+    "===  ===\nx    y\n---  ---\nz\n===  ===", "=====  =====\nA      B\n=====  =====\n1      2\n=====  =====",
+    "+--+\n|a|\n+--+", "=====  =====", "+-----+-----+", "| a   | b   |",
+    "a      b", "+=====+=====+", "-----  -----",
 ]
 PREFIXES = ["", "", "", "", "  ", "    ", "   "]
 
@@ -115,12 +122,18 @@ def main() -> None:
         (inputs / f"c{i}.rst").write_bytes(text.encode())
     files = [str(inputs / f"{name}.rst") for name in texts]
     for i in range(0, len(files), 40):  # keep command lines short
-        subprocess.run([args.binary, "--out", str(outputs)] + files[i:i + 40], check=True)
+        chunk = files[i:i + 40]
+        if subprocess.run([args.binary, "--out", str(outputs)] + chunk,
+                          capture_output=True).returncode != 0:
+            # A crash: run the files one by one; a crashing one has no output.
+            for f in chunk:
+                subprocess.run([args.binary, "--out", str(outputs), f], capture_output=True)
 
     mismatches = 0
     for name, text in texts.items():
         want = docutils_pxml(text)
-        got = (outputs / f"{name}.pxml").read_bytes().decode()
+        out = outputs / f"{name}.pxml"
+        got = out.read_bytes().decode() if out.exists() else "(lsdocs-rst panicked)"
         if want != got:
             base = args.work / f"mismatch-{mismatches}"
             base.with_suffix(".rst").write_bytes(text.encode())

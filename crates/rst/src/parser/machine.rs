@@ -43,6 +43,8 @@ pub(crate) enum Tr {
     OptionMarker,
     Doctest,
     LineBlock,
+    GridTableTop,
+    SimpleTableTop,
     ExplicitMarkup,
     Anonymous,
     Line,
@@ -62,6 +64,8 @@ const BODY: &[Tr] = &[
     Tr::OptionMarker,
     Tr::Doctest,
     Tr::LineBlock,
+    Tr::GridTableTop,
+    Tr::SimpleTableTop,
     Tr::ExplicitMarkup,
     Tr::Anonymous,
     Tr::Line,
@@ -144,6 +148,11 @@ impl Machine {
         m
     }
 
+    /// The number of lines.
+    pub(crate) fn lines_len(&self) -> isize {
+        self.len()
+    }
+
     fn len(&self) -> isize {
         (self.data.len() - self.lo) as isize
     }
@@ -207,13 +216,14 @@ impl Machine {
     fn notify(&self, doc: &mut Document) {
         let len = self.len();
         let off = self.line_offset;
-        doc.current_line = if (0..len).contains(&off) {
-            Some((self.input_offset + off + 1) as usize)
+        let line = if (0..len).contains(&off) {
+            Some(self.input_offset + off + 1)
         } else if (-len..0).contains(&off) {
-            Some((self.input_offset + len + off + 1) as usize)
+            Some(self.input_offset + len + off + 1)
         } else {
             None
         };
+        doc.current_line = line.and_then(|l| usize::try_from(l).ok());
         if self.top {
             doc.top_offset = off;
         }
@@ -432,6 +442,8 @@ impl Machine {
             Tr::OptionMarker => p::option_marker(s).is_some(),
             Tr::Doctest => p::doctest(s).is_some(),
             Tr::LineBlock => p::line_block(s).is_some(),
+            Tr::GridTableTop => super::table::is_grid_top(s),
+            Tr::SimpleTableTop => super::table::is_simple_top(s),
             Tr::ExplicitMarkup => p::explicit_markup(s).is_some(),
             Tr::Anonymous => p::anonymous(s).is_some(),
             Tr::Line | Tr::Underline => p::line(s),
@@ -589,6 +601,8 @@ impl Machine {
             (S::Body, Tr::Doctest) => self.doctest(doc, state),
             (S::Body, Tr::LineBlock) => self.line_block(doc, state),
             (S::LineBlock, Tr::LineBlock) => self.line_block_next(doc, state),
+            (S::Body, Tr::GridTableTop) => self.table_top(doc, state, true),
+            (S::Body, Tr::SimpleTableTop) => self.table_top(doc, state, false),
             (S::Body, Tr::ExplicitMarkup) => self.explicit_markup(doc, state),
             (S::Explicit, Tr::ExplicitMarkup) => self.explicit_next(doc, state),
             (S::Body, Tr::Anonymous) => self.anonymous(doc, state),

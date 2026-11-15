@@ -1,0 +1,139 @@
+<document source="test data">
+    <table>
+        <tgroup cols="3">
+            <colspec colwidth="5">
+            <colspec colwidth="5">
+            <colspec colwidth="6">
+            <thead>
+                <row>
+                    <entry>
+                        <paragraph>
+                            A
+                    <entry>
+                        <paragraph>
+                            B
+                    <entry>
+                        <paragraph>
+                            A or B
+            <tbody>
+                <row>
+                    <entry>
+                        <paragraph>
+                            False
+                    <entry>
+                        <paragraph>
+                            False
+                    <entry>
+                        <paragraph>
+                            False
+                <row>
+                    <entry>
+                        <paragraph>
+                            True
+                    <entry>
+                        <paragraph>
+                            False
+                    <entry>
+                        <paragraph>
+                            True
+                <row>
+                    <entry>
+                        <paragraph>
+                            False
+                    <entry>
+                        <paragraph>
+                            True
+                    <entry>
+                        <paragraph>
+                            True
+                <row>
+                    <entry>
+                        <paragraph>
+                            True
+                    <entry>
+                        <paragraph>
+                            True
+                    <entry>
+                        <paragraph>
+                            True
+    <table>
+        <tgroup cols="2">
+            <colspec colwidth="5">
+            <colspec colwidth="30">
+            <thead>
+                <row>
+                    <entry>
+                        <paragraph>
+                            col 1
+                    <entry>
+                        <paragraph>
+                            col 2
+            <tbody>
+                <row>
+                    <entry>
+                        <paragraph>
+                            1
+                    <entry>
+                        <paragraph>
+                            Second column of row 1.
+                <row>
+                    <entry>
+                        <paragraph>
+                            2
+                    <entry>
+                        <paragraph>
+                            Second column of row 2.
+                            Second line of paragraph.
+                <row>
+                    <entry>
+                        <paragraph>
+                            3
+                    <entry>
+                        <bullet_list bullet="-">
+                            <list_item>
+                                <paragraph>
+                                    Second column of row 3.
+                            <list_item>
+                                <paragraph>
+                                    Second item in bullet
+                                    list (row 3, column 2).
+                <row>
+                    <entry>
+                        <system_message level="1" line="20" source="test data" type="INFO">
+                            <paragraph>
+                                Unexpected possible title overline or transition.
+                                Treating it as ordinary text because it's so short.
+                        <paragraph>
+                    <entry>
+                        <paragraph>
+                            Row 4; column 1 will be empty.
+                <row>
+                    <entry morecols="1">
+                        <paragraph>
+                            4 is a span
+                <row>
+                    <entry>
+                        <paragraph>
+                            5
+                    <entry>
+    <table>
+        <tgroup cols="2">
+            <colspec colwidth="4">
+            <colspec colwidth="4">
+            <tbody>
+                <row>
+                    <entry>
+                        <paragraph>
+                            no
+                    <entry>
+                        <paragraph>
+                            head
+                <row>
+                    <entry>
+                        <paragraph>
+                            rows
+                    <entry>
+                        <paragraph>
+                            here
+    <paragraph>
+        Text.

@@ -1,0 +1,66 @@
+<document source="test data">
+    <system_message level="3" line="3" source="test data" type="ERROR">
+        <paragraph>
+            Malformed table.
+            Bottom border missing or corrupt.
+        <literal_block xml:space="preserve">
+            +-----+-----+
+            | a   | b   |
+            +-----+---
+    <system_message level="3" line="6" source="test data" type="ERROR">
+        <paragraph>
+            Malformed table.
+            Right border not aligned or missing.
+        <literal_block xml:space="preserve">
+            +-----+-----+
+            | a   | b  |
+            +-----+-----+
+    <system_message level="3" line="13" source="test data" type="ERROR">
+        <paragraph>
+            Malformed table.
+            Multiple head/body row separators (table lines 3 and 5); only one allowed.
+        <literal_block xml:space="preserve">
+            +-----+-----+
+            | a   | b   |
+            +=====+=====+
+            | c   | d   |
+            +=====+=====+
+            | e   | f   |
+            +-----+-----+
+    <system_message level="3" line="19" source="test data" type="ERROR">
+        <paragraph>
+            Malformed table.
+            Bottom border or header rule does not match top border.
+        <literal_block xml:space="preserve">
+            =====  =====
+            a      b
+            =====  ====
+    <table>
+        <tgroup cols="2">
+            <colspec colwidth="5">
+            <colspec colwidth="6">
+            <tbody>
+                <row>
+                    <entry>
+                        <paragraph>
+                            a
+                    <entry>
+                        <paragraph>
+                            b    c
+    <system_message level="3" line="27" source="test data" type="ERROR">
+        <paragraph>
+            Malformed table.
+            Column span incomplete in table line 3.
+        <literal_block xml:space="preserve">
+            =====  =====
+            a      b
+            -----  ------
+            c      d
+            =====  =====
+    <system_message level="3" line="31" source="test data" type="ERROR">
+        <paragraph>
+            Malformed table.
+            No bottom table border found.
+        <literal_block xml:space="preserve">
+            =====  =====
+            no bottom
