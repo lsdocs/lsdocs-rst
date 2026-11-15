@@ -1,0 +1,13 @@
+# Conformance cases expected to fail, one name per line, until the parser
+# handles them. The test fails if one of these starts passing, so the list
+# stays accurate: remove the name when a case passes.
+
+# 8b: block structure
+section
+bullet_list
+literal_block
+block_quote
+comment
+
+# 8c: inline markup
+emphasis

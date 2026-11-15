@@ -1,0 +1,4 @@
+<document source="test data">
+    <paragraph>
+        Trailing spaces
+        and     a tab, a form feed.
