@@ -43,6 +43,13 @@ pub use files::{DirectoryLoader, FileLoader};
 pub use nodes::{AttrValue, Attributes, Element, Kind, Node, Span, Text};
 pub use parser::Parser;
 
+/// `name` as docutils makes ids of names (`docutils.nodes.make_id`):
+/// lowercase ASCII letters and digits, with every run of anything else a
+/// single hyphen, and no hyphen or digit first.
+pub fn make_id(name: &str) -> String {
+    util::make_id(name)
+}
+
 /// Parses `text` with the default settings. See [`Parser::parse`].
 pub fn parse(text: &str) -> Element {
     Parser::new().parse(text)

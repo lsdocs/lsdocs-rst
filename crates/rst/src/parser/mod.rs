@@ -31,7 +31,7 @@ use crate::lines::lines;
 use crate::nodes::{Element, Kind, Span};
 
 /// Directives and roles the caller added, and settings for them.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub(crate) struct Extensions {
     /// By lower-case name.
     pub(crate) directives: HashMap<String, Arc<dyn Directive>>,
@@ -43,6 +43,22 @@ pub(crate) struct Extensions {
     pub(crate) transforms: bool,
     /// Reads files for `include` and the `:file:` options.
     pub(crate) loader: Option<Arc<dyn FileLoader>>,
+    /// Promote a lone top-level section to the document title (docutils'
+    /// `doctitle_xform`).
+    pub(crate) doctitle: bool,
+}
+
+impl Default for Extensions {
+    fn default() -> Self {
+        Self {
+            directives: HashMap::new(),
+            roles: HashMap::new(),
+            keep_unknown: false,
+            transforms: false,
+            loader: None,
+            doctitle: true,
+        }
+    }
 }
 
 /// The longest line docutils parses (its `line_length_limit` setting).
@@ -137,10 +153,26 @@ impl Parser {
         self
     }
 
+    /// With `doctitle` (the default), the transforms make a lone
+    /// top-level section the document's title (and a lone subsection its
+    /// subtitle), as docutils' `doctitle_xform` setting does. Without, the
+    /// section stays, as in Sphinx.
+    pub fn doctitle(mut self, doctitle: bool) -> Self {
+        Arc::make_mut(&mut self.extensions).doctitle = doctitle;
+        self
+    }
+
     /// Parses `text` into a document: an element of kind
     /// [`Kind::Document`]. Problems are reported as `system_message`
     /// elements in the tree; parsing itself never fails.
     pub fn parse(&self, text: &str) -> Element {
+        self.parse_with_messages(text).0
+    }
+
+    /// [`Parser::parse`], plus the messages docutils' transforms report
+    /// without putting them in the tree (`problematic` elements refer to
+    /// them by id), such as unknown target names.
+    pub fn parse_with_messages(&self, text: &str) -> (Element, Vec<Element>) {
         let mut root = Element::new(Kind::Document).with_span(Span::new(0, text.len()));
         if let Some(source) = &self.source {
             root.attributes.set("source", source.as_str());
@@ -164,8 +196,8 @@ impl Parser {
             let mut top = machine::Machine::top(&mut doc, lines);
             top.run(&mut doc, machine::State::Body);
         }
-        let mut root = doc.finish(self.extensions.transforms);
+        let (mut root, messages) = doc.finish(self.extensions.transforms);
         root.span = Some(Span::new(0, text.len()));
-        root
+        (root, messages)
     }
 }

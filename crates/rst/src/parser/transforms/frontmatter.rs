@@ -79,7 +79,7 @@ fn into_element(n: Node) -> Element {
 /// A lone top-level section becomes the document title, and a lone
 /// subsection then the subtitle (docutils' `DocTitle`).
 pub(super) fn doc_title(doc: &mut Document, root: &mut Element) {
-    if promote_title(doc, root) {
+    if doc.extensions.doctitle && promote_title(doc, root) {
         promote_subtitle(doc, root);
     }
     if !has(root, "title")

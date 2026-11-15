@@ -147,6 +147,9 @@ pub(crate) struct Document {
     /// Duplicate names for elements that were not in reach when found
     /// (held by a caller, not yet in the tree); applied at the end.
     deferred_dupnames: Vec<(Key, String)>,
+    /// Messages the transforms report without putting them in the tree
+    /// (docutils' `transform_messages`, less those in the tree).
+    pub(crate) transform_messages: Vec<Element>,
 }
 
 impl Document {
@@ -181,12 +184,13 @@ impl Document {
             extensions: Default::default(),
             refs: HashMap::new(),
             deferred_dupnames: Vec::new(),
+            transform_messages: Vec::new(),
         }
     }
 
     /// Closes every open element, runs docutils' transforms if asked, and
     /// returns the finished root.
-    pub(crate) fn finish(mut self, transforms: bool) -> Element {
+    pub(crate) fn finish(mut self, transforms: bool) -> (Element, Vec<Element>) {
         while self.stack.len() > 1 {
             self.close();
         }
@@ -202,7 +206,11 @@ impl Document {
             super::transforms::apply(&mut self, &mut root);
         }
         strip_hidden(&mut root);
-        root
+        let mut messages = std::mem::take(&mut self.transform_messages);
+        for msg in &mut messages {
+            strip_hidden(msg);
+        }
+        (root, messages)
     }
 
     // -- building the tree ------------------------------------------------

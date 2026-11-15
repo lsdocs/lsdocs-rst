@@ -169,8 +169,8 @@ fn report_problem(
     let mut msg = doc.message(ERROR, message, Vec::new(), At::Exact(None));
     let msgid = doc.set_id(&mut msg, None, None);
     for &key in keys {
-        let Some((skipped, raw)) = with_node(doc, root, key, |_, e| {
-            (skip(e), str_attr(e, RAW).unwrap_or_default())
+        let Some((skipped, raw, span)) = with_node(doc, root, key, |_, e| {
+            (skip(e), str_attr(e, RAW).unwrap_or_default(), e.span)
         }) else {
             continue;
         };
@@ -178,10 +178,12 @@ fn report_problem(
             continue;
         }
         let mut prb = problematic(doc, &raw, &msgid);
+        prb.span = span;
         let prbid = doc.set_id(&mut prb, None, None);
         msg.attributes.push("backrefs", prbid);
         replace_self(root, key, vec![prb.into()]);
     }
+    doc.transform_messages.push(msg);
 }
 
 // -- running ------------------------------------------------------------------
@@ -1035,6 +1037,7 @@ fn dangling_references(doc: &mut Document, root: &mut Element) {
         let msgid = doc.set_id(&mut msg, None, None);
         let raw = str_attr(&r, RAW).unwrap_or_default();
         let mut prb = problematic(doc, &raw, &msgid);
+        prb.span = r.span;
         match first_id(&r) {
             Some(id) => msg.attributes.push("backrefs", id),
             None => {
@@ -1043,6 +1046,7 @@ fn dangling_references(doc: &mut Document, root: &mut Element) {
             }
         }
         replace_self(root, key, vec![prb.into()]);
+        doc.transform_messages.push(msg);
     }
 }
 
