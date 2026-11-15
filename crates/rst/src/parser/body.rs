@@ -202,7 +202,7 @@ fn parse_option_marker(marker: &str) -> Result<Vec<Element>, String> {
 
 /// Nests line block lines by indentation (docutils'
 /// `nest_line_block_segment`).
-fn nest_line_block_segment(items: Vec<Node>) -> Vec<Node> {
+pub(crate) fn nest_line_block_segment(items: Vec<Node>) -> Vec<Node> {
     let indent = |n: &Node| match n {
         Node::Element(e) => match e.attributes.get(LINE_INDENT) {
             Some(AttrValue::Int(i)) => *i,
@@ -435,8 +435,9 @@ impl Machine {
         Ok(state)
     }
 
-    /// A field: its name and body.
-    fn field(&mut self, doc: &mut Document, end: usize) -> (Element, bool) {
+    /// A field: its name and body. With `simple` (directive options), the
+    /// body is only split into paragraphs of plain text.
+    fn field(&mut self, doc: &mut Document, end: usize, simple: bool) -> (Element, bool) {
         let marker: String = self.text().chars().take(end).collect();
         let name = &marker[1..];
         let name = &name[..name.rfind(':').unwrap_or(name.len())];
@@ -450,7 +451,21 @@ impl Machine {
         let mut field_name = Element::new(Kind::FieldName).with_children(nodes);
         field_name.span = span;
         let mut body = Element::new(Kind::FieldBody).with_children(messages);
-        if !indented.is_empty() {
+        if simple {
+            let mut lines: Vec<Line> = Vec::new();
+            for line in indented.iter().cloned().chain([Line::default()]) {
+                if !crate::util::strip(&line.text).is_empty() {
+                    lines.push(line);
+                } else if !lines.is_empty() {
+                    let text = join(&lines);
+                    let mut p =
+                        Element::new(Kind::Paragraph).with_child(Text::new(text, span_of(&lines)));
+                    p.span = span_of(&lines);
+                    body.children.push(p.into());
+                    lines.clear();
+                }
+            }
+        } else if !indented.is_empty() {
             doc.open(body, false);
             self.nested_parse(doc, indented, offset);
             body = doc.close().unwrap();
@@ -467,7 +482,7 @@ impl Machine {
     pub(crate) fn field_marker(&mut self, doc: &mut Document, state: State) -> Step {
         let end = patterns::field_marker(&chars_of(self.text())).unwrap();
         doc.open(Element::new(Kind::FieldList), true);
-        let (field, blank_finish) = self.field(doc, end);
+        let (field, blank_finish) = self.field(doc, end, false);
         doc.append(field);
         let (offset, blank_finish) =
             self.nested_list_parse(doc, self.rest(), State::FieldList, blank_finish, |_| {});
@@ -483,7 +498,7 @@ impl Machine {
     /// A later field.
     pub(crate) fn field_list_item(&mut self, doc: &mut Document, state: State) -> Step {
         let end = patterns::field_marker(&chars_of(self.text())).unwrap();
-        let (field, blank_finish) = self.field(doc, end);
+        let (field, blank_finish) = self.field(doc, end, state == State::ExtensionOptions);
         doc.append(field);
         self.blank_finish = blank_finish;
         Ok(state)

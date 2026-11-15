@@ -25,6 +25,10 @@ pub(crate) enum State {
     OptionList,
     LineBlock,
     Explicit,
+    /// Directive options: fields whose bodies are plain text.
+    ExtensionOptions,
+    /// The `meta` directive's fields.
+    MetaBody,
     Text,
     Definition,
     Line,
@@ -595,7 +599,10 @@ impl Machine {
             (S::Body, Tr::Enumerator) => self.enumerator(doc, state),
             (S::EnumeratedList, Tr::Enumerator) => self.enumerated_list_item(doc, state),
             (S::Body, Tr::FieldMarker) => self.field_marker(doc, state),
-            (S::FieldList, Tr::FieldMarker) => self.field_list_item(doc, state),
+            (S::FieldList | S::ExtensionOptions, Tr::FieldMarker) => {
+                self.field_list_item(doc, state)
+            }
+            (S::MetaBody, Tr::FieldMarker) => self.meta_field(doc, state),
             (S::Body, Tr::OptionMarker) => self.option_marker(doc, state),
             (S::OptionList, Tr::OptionMarker) => self.option_list_next(doc, state),
             (S::Body, Tr::Doctest) => self.doctest(doc, state),

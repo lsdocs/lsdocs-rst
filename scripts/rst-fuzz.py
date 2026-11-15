@@ -17,7 +17,7 @@ import subprocess
 from pathlib import Path
 
 from docutils.frontend import get_default_settings
-from docutils.parsers.rst import Parser
+from docutils.parsers.rst import Parser, roles
 from docutils.utils import new_document
 
 FRAGMENTS = [
@@ -49,6 +49,19 @@ FRAGMENTS = [
     "===  ===\nx    y\n---  ---\nz\n===  ===", "=====  =====\nA      B\n=====  =====\n1      2\n=====  =====",
     "+--+\n|a|\n+--+", "=====  =====", "+-----+-----+", "| a   | b   |",
     "a      b", "+=====+=====+", "-----  -----",
+    # Directives, with options and content.
+    ".. note:: Note text.", ".. note::", ".. warning::\n   :class: x\n\n   Body.",
+    ".. admonition:: Title", ".. topic:: Topic", ".. sidebar:: Side\n   :subtitle: s",
+    ".. rubric:: Rubric", ".. epigraph::", ".. compound::", ".. container:: a b",
+    ".. parsed-literal::", ".. code:: python", ".. code::\n   :number-lines:",
+    ".. math::", ".. line-block::", ".. image:: a.png", ".. image:: a.png\n   :width: 50%",
+    ".. image:: a.png\n   :target: t_", ".. figure:: f.png", ".. figure:: f.png\n   :figwidth: 10",
+    ".. |r| replace:: text", ".. |u| unicode:: U+00A9", ".. |i| image:: i.png",
+    ".. raw:: html", ".. include:: x.rst", ".. title:: T", ".. class:: c", ".. class:: !",
+    ".. meta::\n   :k: v", ".. role:: r", ".. role:: e(emphasis)", ".. default-role:: strong",
+    ".. contents::", ".. contents:: Toc\n   :depth: 1", ".. sectnum::", ".. target-notes::",
+    ".. header:: h", ".. footer:: f", ".. rst-class:: c", ".. code-block:: c",
+    "   :name: n", "   :class: k", "   :nosuch: v", "   :depth: x",
 ]
 PREFIXES = ["", "", "", "", "  ", "    ", "   "]
 
@@ -94,6 +107,9 @@ def docutils_pxml(text: str) -> str:
     settings.warning_stream = io.StringIO()
     settings.report_level = 5
     settings.halt_level = 5
+    settings.syntax_highlight = "none"  # lsdocs-rst does not highlight code
+    settings.file_insertion_enabled = False  # nor read files by default
+    roles._roles.clear()  # custom roles are process-wide in docutils
     doc = new_document("test data", settings)
     Parser().parse(text, doc)
     return doc.pformat()

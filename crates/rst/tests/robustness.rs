@@ -19,6 +19,18 @@ impl Rng {
 }
 
 const PIECES: &[&str] = &[
+    ".. note::",
+    ".. image:: ",
+    ".. figure::",
+    ".. code::",
+    ".. |s| replace::",
+    ".. role:: ",
+    ".. meta::",
+    ".. contents::",
+    ".. header::",
+    ":class:",
+    ":name:",
+    ":width:",
     " ",
     " ",
     "  ",

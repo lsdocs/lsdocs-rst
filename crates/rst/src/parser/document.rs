@@ -113,6 +113,9 @@ pub(crate) struct Document {
     /// Inline nodes parsed but not yet in the tree (they can be
     /// duplicates' earlier targets).
     pub(crate) scratch: Vec<Node>,
+    /// Roles by lower-case name: custom ones, those looked up so far, and
+    /// the default role under the empty name.
+    pub(crate) roles: HashMap<String, super::roles::Role>,
     /// The `refname` and `refuri` of each element with registered names.
     refs: HashMap<Key, (Option<String>, Option<String>)>,
     /// Duplicate names for elements that were not in reach when found
@@ -139,6 +142,7 @@ impl Document {
             substitution_defs: HashMap::new(),
             next_key: 0,
             scratch: Vec::new(),
+            roles: HashMap::new(),
             refs: HashMap::new(),
             deferred_dupnames: Vec::new(),
         }
@@ -164,6 +168,71 @@ impl Document {
     /// The current parent: the innermost open element.
     pub(crate) fn top(&mut self) -> &mut Element {
         &mut self.stack.last_mut().unwrap().element
+    }
+
+    /// The document element.
+    pub(crate) fn root(&mut self) -> &mut Element {
+        &mut self.stack[0].element
+    }
+
+    /// Inserts `nodes` into the document element at `index`, keeping open
+    /// elements' places right.
+    pub(crate) fn insert_in_root(&mut self, index: usize, nodes: Vec<Node>) {
+        let n = nodes.len();
+        let index = index.min(self.stack[0].element.children.len());
+        self.stack[0].element.children.splice(index..index, nodes);
+        if let Some(frame) = self.stack.get_mut(1)
+            && let Some(at) = frame.at.as_mut()
+            && *at >= index
+        {
+            *at += n;
+        }
+    }
+
+    /// Adds `content` to the document's header or footer (`kind`), making
+    /// the decoration element if needed (docutils' `get_decoration`).
+    pub(crate) fn add_to_decoration(&mut self, kind: Kind, content: Vec<Node>) {
+        let position = |root: &Element| {
+            root.children
+                .iter()
+                .position(|c| matches!(c, Node::Element(e) if e.kind == Kind::Decoration))
+        };
+        if position(&self.stack[0].element).is_none() {
+            let index = self.stack[0]
+                .element
+                .children
+                .iter()
+                .position(|c| !matches!(c, Node::Element(e) if matches!(e.kind, Kind::Title | Kind::Subtitle | Kind::Rubric | Kind::Meta)))
+                .unwrap_or(self.stack[0].element.children.len());
+            self.insert_in_root(index, vec![Element::new(Kind::Decoration).into()]);
+        }
+        let i = position(&self.stack[0].element).unwrap();
+        let Node::Element(decoration) = &mut self.stack[0].element.children[i] else {
+            return;
+        };
+        let part = if kind == Kind::Header {
+            if !matches!(decoration.children.first(), Some(Node::Element(e)) if e.kind == Kind::Header)
+            {
+                decoration
+                    .children
+                    .insert(0, Element::new(Kind::Header).into());
+            }
+            decoration.children.first_mut()
+        } else {
+            if !matches!(decoration.children.last(), Some(Node::Element(e)) if e.kind == Kind::Footer)
+            {
+                decoration.children.push(Element::new(Kind::Footer).into());
+            }
+            decoration.children.last_mut()
+        };
+        if let Some(Node::Element(part)) = part {
+            part.children.extend(content);
+        }
+    }
+
+    /// Whether a target name is registered.
+    pub(crate) fn has_name(&self, name: &str) -> bool {
+        self.names.contains_key(name)
     }
 
     /// Appends to the current parent.

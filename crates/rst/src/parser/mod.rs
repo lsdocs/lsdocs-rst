@@ -4,11 +4,12 @@
 //! Supported so far: the block structure (sections, transitions,
 //! paragraphs, block quotes, bullet, enumerated, definition, field and
 //! option lists, literal, line and doctest blocks, footnotes, citations,
-//! hyperlink targets, substitution definitions and comments) and inline
-//! markup (docutils' `Inliner`, with the standard roles). Directives are
-//! reported as unknown.
+//! hyperlink targets, substitution definitions, comments and tables),
+//! inline markup (docutils' `Inliner`, with the standard roles), and the
+//! standard directives except the table directives.
 
 mod body;
+mod directives;
 mod document;
 mod explicit;
 mod inline;

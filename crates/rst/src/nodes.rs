@@ -278,6 +278,8 @@ pub enum AttrValue {
     Int(i64),
     /// A flag.
     Bool(bool),
+    /// No value (Python's `None`); only in `pending` details.
+    None,
 }
 
 impl From<&str> for AttrValue {

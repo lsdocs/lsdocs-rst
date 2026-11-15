@@ -1,11 +1,9 @@
 //! Interpreted text roles: docutils' standard roles and their English
-//! names (`docutils.parsers.rst.roles`, `languages.en`).
-//!
-//! Roles with options (`code` with a language, `raw` with a format) come
-//! from the `role` directive, which arrives with the directive registry;
-//! used directly they behave as in docutils.
+//! names (`docutils.parsers.rst.roles`, `languages.en`), and custom roles
+//! made with the `role` directive.
 
-use super::document::{ERROR, INFO};
+use super::directives::options::{Opt, OptValue, python_int};
+use super::document::{At, Document, ERROR, INFO, fixed};
 use super::inline::{Inliner, element};
 use crate::nodes::{Element, Kind, Node, Span, Text};
 use crate::util::{restore_backslashes, unescape};
@@ -66,142 +64,267 @@ fn generic(canonical: &str) -> Option<Kind> {
     })
 }
 
-/// Parses an integer the way Python's `int()` does for plain decimal text.
-fn python_int(text: &str) -> Option<i64> {
-    let t = text.trim();
-    let digits = t.strip_prefix(['+', '-']).unwrap_or(t);
-    if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit() || c == '_') {
-        return None;
-    }
-    if digits.starts_with('_') || digits.ends_with('_') || digits.contains("__") {
-        return None;
-    }
-    t.replace('_', "").parse().ok()
+/// Whether `canonical` names a role in the registry.
+fn registered(canonical: &str) -> bool {
+    generic(canonical).is_some()
+        || matches!(
+            canonical,
+            "code" | "math" | "pep-reference" | "rfc-reference" | "raw"
+        )
+        || UNIMPLEMENTED.contains(&canonical)
 }
 
-/// Interpreted text `text` with `role` (empty for the default role).
-pub(crate) fn interpreted(
-    inliner: &mut Inliner<'_>,
-    rawsource: &str,
-    text: &str,
-    role: &str,
-    span: Option<Span>,
-) -> (Vec<Node>, Vec<Element>) {
+/// A role: a standard one by canonical name, or a custom one (from the
+/// `role` directive) with the options it was made with.
+#[derive(Debug, Clone)]
+pub(crate) struct Role {
+    /// The canonical name of the base role; empty for docutils'
+    /// `generic_custom_role` (an `inline` element).
+    canonical: String,
+    /// Options given by the `role` directive.
+    options: Vec<(String, OptValue)>,
+}
+
+impl Role {
+    fn standard(canonical: &str) -> Self {
+        Role {
+            canonical: canonical.to_owned(),
+            options: Vec::new(),
+        }
+    }
+
+    /// The base of a custom role made without one.
+    pub(crate) fn generic_custom() -> Self {
+        Self::standard("")
+    }
+
+    /// The options a custom role based on this one accepts.
+    pub(crate) fn option_spec(&self) -> &'static [(&'static str, Opt)] {
+        match self.canonical.as_str() {
+            "code" => &[("language", Opt::Unchanged), ("class", Opt::Class)],
+            "raw" => &[("format", Opt::Unchanged), ("class", Opt::Class)],
+            _ => &[("class", Opt::Class)],
+        }
+    }
+
+    /// A custom role on this base with `options` (docutils' `CustomRole`).
+    pub(crate) fn customized(&self, options: Vec<(String, OptValue)>) -> Self {
+        let mut merged = self.options.clone();
+        for (k, v) in options {
+            match merged.iter_mut().find(|(n, _)| *n == k) {
+                Some(slot) => slot.1 = v,
+                None => merged.push((k, v)),
+            }
+        }
+        Role {
+            canonical: self.canonical.clone(),
+            options: merged,
+        }
+    }
+
+    fn option(&self, name: &str) -> Option<&OptValue> {
+        self.options.iter().find(|(n, _)| n == name).map(|(_, v)| v)
+    }
+
+    /// Sets the options on a role's element (`classes` from `class`).
+    fn apply_options(&self, e: &mut Element) {
+        for (name, value) in &self.options {
+            match (name.as_str(), value) {
+                ("class", v) => {
+                    for c in v.as_list() {
+                        e.attributes.push("classes", c);
+                    }
+                }
+                ("language", _) => {}
+                (n, OptValue::Str(s)) => e.attributes.set(n, s.clone()),
+                (n, OptValue::Int(i)) => e.attributes.set(n, *i),
+                _ => {}
+            }
+        }
+    }
+}
+
+/// Finds a role by name (docutils' `roles.role`): a custom role, a
+/// standard role under its English name, or one by canonical name, with
+/// a message. Found roles are remembered for the document.
+pub(crate) fn lookup(
+    doc: &mut Document,
+    name: &str,
+    lineno: usize,
+) -> (Option<Role>, Vec<Element>) {
+    let normname = name.to_lowercase();
+    if let Some(role) = doc.roles.get(&normname) {
+        return (Some(role.clone()), Vec::new());
+    }
     let mut messages = Vec::new();
-    let normname = role.to_lowercase();
-    let canonical_name = if role.is_empty() {
+    let canonical_name = if name.is_empty() {
         "title-reference".to_owned()
     } else if let Some(c) = canonical(&normname) {
         c.to_owned()
     } else {
-        messages.push(inliner.doc.message(
+        messages.push(doc.message(
             INFO,
             &format!(
-                "No role entry for \"{role}\" in module \
+                "No role entry for \"{name}\" in module \
                  \"docutils.parsers.rst.languages.en\".\n\
-                 Trying \"{role}\" as canonical role name."
+                 Trying \"{name}\" as canonical role name."
             ),
             Vec::new(),
-            super::document::At::Top(Some(inliner.lineno)),
+            At::Top(Some(lineno)),
         ));
-        normname
+        normname.clone()
     };
-    let error =
-        |inliner: &mut Inliner<'_>, level: i64, message: &str| -> (Vec<Node>, Vec<Element>) {
-            let mut msg = inliner.doc.message(
-                level,
-                message,
-                Vec::new(),
-                super::document::At::Top(Some(inliner.lineno)),
-            );
-            let prb = inliner.problematic(rawsource, &mut msg, span);
-            (vec![prb.into()], vec![msg])
-        };
-    let (nodes, more) = if let Some(kind) = generic(&canonical_name) {
-        (vec![element(kind, text, span).into()], Vec::new())
+    if registered(&canonical_name) {
+        let role = Role::standard(&canonical_name);
+        if !name.is_empty() {
+            doc.roles.insert(normname, role.clone());
+        }
+        return (Some(role), messages);
+    }
+    (None, messages)
+}
+
+/// Interpreted text `text` with role `role_name` (empty for the default
+/// role).
+pub(crate) fn interpreted(
+    inliner: &mut Inliner<'_>,
+    rawsource: &str,
+    text: &str,
+    role_name: &str,
+    span: Option<Span>,
+) -> (Vec<Node>, Vec<Element>) {
+    let lineno = inliner.lineno;
+    let (role, mut messages) = lookup(inliner.doc, role_name, lineno);
+    let Some(role) = role else {
+        let mut msg = inliner.doc.message(
+            ERROR,
+            &format!("Unknown interpreted text role \"{role_name}\"."),
+            Vec::new(),
+            At::Top(Some(lineno)),
+        );
+        let prb = inliner.problematic(rawsource, &mut msg, span);
+        messages.push(msg);
+        return (vec![prb.into()], messages);
+    };
+    let (nodes, more) = apply(inliner, &role, role_name, rawsource, text, span);
+    messages.extend(more);
+    (nodes, messages)
+}
+
+/// Runs a role function.
+fn apply(
+    inliner: &mut Inliner<'_>,
+    role: &Role,
+    role_name: &str,
+    rawsource: &str,
+    text: &str,
+    span: Option<Span>,
+) -> (Vec<Node>, Vec<Element>) {
+    let lineno = inliner.lineno;
+    let error = |inliner: &mut Inliner<'_>, message: &str| -> (Vec<Node>, Vec<Element>) {
+        let mut msg = inliner
+            .doc
+            .message(ERROR, message, Vec::new(), At::Top(Some(lineno)));
+        let prb = inliner.problematic(rawsource, &mut msg, span);
+        (vec![prb.into()], vec![msg])
+    };
+    let mut node = if role.canonical.is_empty() {
+        element(Kind::Inline, text, span)
+    } else if let Some(kind) = generic(&role.canonical) {
+        element(kind, text, span)
     } else {
-        match canonical_name.as_str() {
+        match role.canonical.as_str() {
             "code" => {
+                let mut language = if role_name.eq_ignore_ascii_case("code") {
+                    String::new()
+                } else {
+                    role_name.to_owned()
+                };
+                if let Some(OptValue::Str(l)) = role.option("language") {
+                    language = l.clone();
+                }
+                if language.eq_ignore_ascii_case("none") {
+                    language.clear();
+                }
                 let mut node = Element::new(Kind::Literal);
                 node.span = span;
                 node.attributes.push("classes", "code");
+                role.apply_options(&mut node);
+                if !language.is_empty() && !node.attributes.get_list("classes").contains(&language)
+                {
+                    node.attributes.push("classes", language);
+                }
                 node.children
                     .push(Text::new(restore_backslashes(text), span).into());
-                (vec![node.into()], Vec::new())
+                return (vec![node.into()], Vec::new());
             }
-            "math" => (
-                vec![element(Kind::Math, &restore_backslashes(text), span).into()],
-                Vec::new(),
-            ),
-            "pep-reference" => match python_int(&unescape(text)).filter(|n| (0..=9999).contains(n))
-            {
-                Some(n) => {
-                    let mut r = element(Kind::Reference, &format!("PEP {text}"), span);
-                    r.attributes
-                        .set("refuri", format!("https://peps.python.org/pep-{n:04}"));
-                    (vec![r.into()], Vec::new())
-                }
-                None => error(
-                    inliner,
-                    ERROR,
-                    &format!("PEP number must be a number from 0 to 9999; \"{text}\" is invalid."),
-                ),
-            },
+            "math" => element(Kind::Math, &restore_backslashes(text), span),
+            "pep-reference" => {
+                let number = python_int(Some(&unescape(text)))
+                    .ok()
+                    .filter(|n| (0..=9999).contains(n));
+                let Some(n) = number else {
+                    return error(
+                        inliner,
+                        &format!(
+                            "PEP number must be a number from 0 to 9999; \"{text}\" is invalid."
+                        ),
+                    );
+                };
+                let mut r = element(Kind::Reference, &format!("PEP {text}"), span);
+                r.attributes
+                    .set("refuri", format!("https://peps.python.org/pep-{n:04}"));
+                r
+            }
             "rfc-reference" => {
                 let plain = unescape(text);
                 let (number, section) = match plain.split_once('#') {
                     Some((n, s)) => (n.to_owned(), Some(s.to_owned())),
                     None => (plain.clone(), None),
                 };
-                match python_int(&number).filter(|&n| n >= 1) {
-                    Some(n) => {
-                        let mut uri = format!("https://tools.ietf.org/html/rfc{n}.html");
-                        if let Some(section) = section {
-                            uri.push('#');
-                            uri.push_str(&section);
-                        }
-                        let mut r = element(Kind::Reference, &format!("RFC {n}"), span);
-                        r.attributes.set("refuri", uri);
-                        (vec![r.into()], Vec::new())
-                    }
-                    None => error(
+                let number = python_int(Some(&number)).ok().filter(|&n| n >= 1);
+                let Some(n) = number else {
+                    return error(
                         inliner,
-                        ERROR,
                         &format!(
                             "RFC number must be a number greater than or equal to 1; \
                              \"{text}\" is invalid."
                         ),
-                    ),
+                    );
+                };
+                let mut uri = format!("https://tools.ietf.org/html/rfc{n}.html");
+                if let Some(section) = section {
+                    uri.push('#');
+                    uri.push_str(&section);
                 }
+                let mut r = element(Kind::Reference, &format!("RFC {n}"), span);
+                r.attributes.set("refuri", uri);
+                r
             }
-            "raw" => error(
-                inliner,
-                ERROR,
-                &format!(
-                    "No format (Writer name) is associated with this role: \"{role}\".\n\
-                     The \"raw\" role cannot be used directly.\n\
-                     Instead, use the \"role\" directive to create a new role with an \
-                     associated format."
-                ),
-            ),
-            c if UNIMPLEMENTED.contains(&c) => error(
-                inliner,
-                ERROR,
-                &format!("Interpreted text role \"{role}\" not implemented."),
-            ),
+            "raw" => {
+                if role.option("format").is_none() {
+                    return error(
+                        inliner,
+                        &format!(
+                            "No format (Writer name) is associated with this role: \"{role_name}\".\n\
+                             The \"raw\" role cannot be used directly.\n\
+                             Instead, use the \"role\" directive to create a new role with an \
+                             associated format."
+                        ),
+                    );
+                }
+                let mut node = fixed(Kind::Raw, &restore_backslashes(text), span);
+                role.apply_options(&mut node);
+                return (vec![node.into()], Vec::new());
+            }
             _ => {
-                let mut msg = inliner.doc.message(
-                    ERROR,
-                    &format!("Unknown interpreted text role \"{role}\"."),
-                    Vec::new(),
-                    super::document::At::Top(Some(inliner.lineno)),
+                return error(
+                    inliner,
+                    &format!("Interpreted text role \"{role_name}\" not implemented."),
                 );
-                let prb = inliner.problematic(rawsource, &mut msg, span);
-                messages.push(msg);
-                return (vec![prb.into()], messages);
             }
         }
     };
-    messages.extend(more);
-    (nodes, messages)
+    role.apply_options(&mut node);
+    (vec![node.into()], Vec::new())
 }

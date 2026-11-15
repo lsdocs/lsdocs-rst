@@ -15,7 +15,7 @@ from pathlib import Path
 
 import docutils
 from docutils.frontend import get_default_settings
-from docutils.parsers.rst import Parser
+from docutils.parsers.rst import Parser, roles
 from docutils.utils import new_document
 
 
@@ -25,6 +25,9 @@ def pseudoxml(text: str) -> str:
     settings.warning_stream = io.StringIO()  # problems stay in the tree
     settings.report_level = 5
     settings.halt_level = 5
+    settings.syntax_highlight = "none"  # lsdocs-rst does not highlight code
+    settings.file_insertion_enabled = False  # nor read files by default
+    roles._roles.clear()  # custom roles are process-wide in docutils
     document = new_document("test data", settings)
     parser.parse(text, document)
     return document.pformat()

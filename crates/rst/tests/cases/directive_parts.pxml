@@ -1,0 +1,42 @@
+<document source="test data">
+    <decoration>
+        <header>
+            <paragraph>
+                The header.
+            <paragraph>
+                More header.
+        <footer>
+            <paragraph>
+                The footer.
+    <topic classes="contents" ids="contents" names="contents">
+        <title>
+            Contents
+        <pending>
+            .. internal attributes:
+                 .transform: docutils.transforms.parts.Contents
+                 .details:
+    <topic classes="contents local" ids="table-of-contents" names="table\ of\ contents">
+        <title>
+            Table of Contents
+        <pending>
+            .. internal attributes:
+                 .transform: docutils.transforms.parts.Contents
+                 .details:
+                   backlinks: None
+                   depth: 2
+                   local: None
+    <pending>
+        .. internal attributes:
+             .transform: docutils.transforms.parts.SectNum
+             .details:
+               depth: 3
+               prefix: 'P'
+    <pending>
+        .. internal attributes:
+             .transform: docutils.transforms.references.TargetNotes
+             .details:
+    <section ids="title" names="title">
+        <title>
+            Title
+        <paragraph>
+            Text.

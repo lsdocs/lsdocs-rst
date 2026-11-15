@@ -2,10 +2,9 @@
 //! citations, hyperlink targets, substitution definitions, directives and
 //! comments.
 //!
-//! Directives are not run yet: every directive is reported as unknown,
-//! as docutils does for a directive it has no implementation for.
+//! Directives themselves are in the `directives` module.
 
-use super::document::{At, Document, ERROR, INFO, MsgNode, WARNING, fixed};
+use super::document::{At, Document, ERROR, MsgNode, WARNING, fixed};
 use super::machine::{Machine, State, Step, join, span_of};
 use crate::lines::Line;
 use crate::nodes::{Element, Kind, Node, Span, Text};
@@ -133,7 +132,8 @@ impl Machine {
         } else if let Some(end) = patterns::substitution_def(&s) {
             Some(self.substitution_def(doc, &line, end))
         } else {
-            patterns::directive(&s).map(|(name, _)| Ok(self.directive(doc, &name)))
+            patterns::directive(&s)
+                .map(|(name, end)| Ok(self.run_directive_named(doc, &name, end, Vec::new(), false)))
         };
         match result {
             Some(Ok(construct)) => return construct,
@@ -409,52 +409,29 @@ impl Machine {
     /// A directive inside a substitution definition.
     pub(crate) fn embedded_directive(&mut self, doc: &mut Document) -> Step {
         let s: Vec<char> = self.text().chars().collect();
-        let (name, _) = patterns::embedded_directive(&s).unwrap();
-        let (nodes, blank_finish) = self.directive(doc, &name);
+        let (name, end) = patterns::embedded_directive(&s).unwrap();
+        let alt = doc
+            .top()
+            .attributes
+            .get_list("names")
+            .first()
+            .cloned()
+            .unwrap_or_default();
+        let presets = vec![(
+            "alt".to_owned(),
+            super::directives::options::OptValue::Str(alt),
+        )];
+        let (nodes, blank_finish) = self.run_directive_named(doc, &name, end, presets, true);
         doc.extend(nodes);
         if !self.at_eof() {
             self.blank_finish = blank_finish;
         }
         Err(super::machine::Flow::Eof)
     }
-
-    /// A directive. None are implemented yet, so this reports it as
-    /// unknown, with its text.
-    fn directive(&mut self, doc: &mut Document, name: &str) -> Construct {
-        let info = doc.message(
-            INFO,
-            &format!(
-                "No directive entry for \"{name}\" in module \
-                 \"docutils.parsers.rst.languages.en\".\n\
-                 Trying \"{name}\" as canonical directive name."
-            ),
-            Vec::new(),
-            At::Top(doc.current_line),
-        );
-        doc.append(info);
-        self.unknown_directive(doc, name)
-    }
-
-    /// An error for an unknown directive, with the directive's text.
-    fn unknown_directive(&mut self, doc: &mut Document, name: &str) -> Construct {
-        let start = self.line_offset;
-        let lineno = self.abs_line_number();
-        let (indented, _, _, blank_finish) =
-            self.get_first_known_indented(doc, 0, false, false, true);
-        let text = join(&indented);
-        let span = self.span(start, self.line_offset);
-        let error = doc.message(
-            ERROR,
-            &format!("Unknown directive type \"{name}\"."),
-            vec![fixed(Kind::LiteralBlock, &text, span).into()],
-            At::Top(Some(lineno)),
-        );
-        (vec![error.into()], blank_finish)
-    }
 }
 
 /// What a target points to.
-enum TargetRef {
+pub(crate) enum TargetRef {
     /// Another target, by reference name.
     Name(String),
     /// A URI (empty for an internal target).
@@ -463,7 +440,7 @@ enum TargetRef {
 
 /// docutils' `parse_target`: a reference (`name_`) or a URI with
 /// whitespace removed.
-fn parse_target(block: &[String]) -> TargetRef {
+pub(crate) fn parse_target(block: &[String]) -> TargetRef {
     if block.last().is_some_and(|l| strip(l).ends_with('_')) {
         let reference: Vec<&str> = block.iter().map(|l| strip(l)).collect();
         let reference = whitespace_normalize_name(&reference.join(" "));

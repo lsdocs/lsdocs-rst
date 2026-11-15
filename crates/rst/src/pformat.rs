@@ -9,7 +9,8 @@
 //! values are joined with spaces, `\` and spaces in items escaped with `\`;
 //! flags print as `1` or `0`. Nothing is XML-escaped.
 
-use crate::nodes::{AttrValue, BASIC_ATTRIBUTES, Element, Node, Text};
+use crate::nodes::{AttrValue, BASIC_ATTRIBUTES, Element, Kind, Node, Text};
+use crate::util::py_repr;
 
 const INDENT: &str = "    ";
 
@@ -25,6 +26,9 @@ impl Element {
     pub fn starttag(&self) -> String {
         let mut tag = format!("<{}", self.kind.tag());
         for (name, value) in self.attributes.iter() {
+            if self.kind == Kind::Pending && name.starts_with('.') {
+                continue;
+            }
             let value = match value {
                 AttrValue::List(list)
                     if list.is_empty()
@@ -40,6 +44,7 @@ impl Element {
                 AttrValue::Str(s) => s.clone(),
                 AttrValue::Int(n) => n.to_string(),
                 AttrValue::Bool(b) => u8::from(*b).to_string(),
+                AttrValue::None => "None".to_owned(),
             };
             tag.push_str(&format!(" {name}=\"{value}\""));
         }
@@ -81,6 +86,40 @@ fn element(e: &Element, level: usize, out: &mut String) {
             Node::Element(child) => element(child, level + 1, out),
             Node::Text(t) => text(t, level + 1, out),
         }
+    }
+    if e.kind == Kind::Pending {
+        pending_internals(e, level, out);
+    }
+}
+
+/// A `pending` element's transform and details, as docutils prints them
+/// (Python reprs of the values, keys sorted).
+fn pending_internals(e: &Element, level: usize, out: &mut String) {
+    use std::fmt::Write;
+    let prefix = format!("    {}", INDENT.repeat(level));
+    let transform = e.attributes.get_str(".transform").unwrap_or_default();
+    let _ = writeln!(out, "{prefix}.. internal attributes:");
+    let _ = writeln!(out, "{prefix}     .transform: {transform}");
+    let _ = writeln!(out, "{prefix}     .details:");
+    for (name, value) in e.attributes.iter() {
+        if let Some(key) = name.strip_prefix(".details.") {
+            let _ = writeln!(out, "{prefix}       {key}: {}", repr(value));
+        }
+    }
+}
+
+/// Python's `repr()` of an attribute value.
+fn repr(value: &AttrValue) -> String {
+    match value {
+        AttrValue::Str(s) => py_repr(s),
+        AttrValue::List(l) => {
+            let items: Vec<String> = l.iter().map(|s| py_repr(s)).collect();
+            format!("[{}]", items.join(", "))
+        }
+        AttrValue::Int(n) => n.to_string(),
+        AttrValue::Bool(true) => "True".to_owned(),
+        AttrValue::Bool(false) => "False".to_owned(),
+        AttrValue::None => "None".to_owned(),
     }
 }
 
