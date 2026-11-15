@@ -45,6 +45,18 @@ pub(crate) enum At {
     Exact(Option<usize>),
 }
 
+impl At {
+    /// The line of a message about a node with line `line`: the node's
+    /// line, or the current one if it has none (docutils'
+    /// `base_node`).
+    pub(crate) fn node(line: Option<usize>) -> At {
+        match line {
+            Some(line) => At::Exact(Some(line)),
+            None => At::Top(None),
+        }
+    }
+}
+
 /// Where a duplicate-name message goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum MsgNode {
@@ -95,6 +107,14 @@ pub(crate) struct Document {
     id_counter: HashMap<String, usize>,
     substitution_defs: HashMap<String, Key>,
     next_key: Key,
+    /// Inline nodes parsed but not yet in the tree (they can be
+    /// duplicates' earlier targets).
+    pub(crate) scratch: Vec<Node>,
+    /// The `refname` and `refuri` of each element with registered names.
+    refs: HashMap<Key, (Option<String>, Option<String>)>,
+    /// Duplicate names for elements that were not in reach when found
+    /// (held by a caller, not yet in the tree); applied at the end.
+    deferred_dupnames: Vec<(Key, String)>,
 }
 
 impl Document {
@@ -115,6 +135,9 @@ impl Document {
             id_counter: HashMap::new(),
             substitution_defs: HashMap::new(),
             next_key: 0,
+            scratch: Vec::new(),
+            refs: HashMap::new(),
+            deferred_dupnames: Vec::new(),
         }
     }
 
@@ -124,6 +147,11 @@ impl Document {
             self.close();
         }
         let mut root = self.stack.pop().unwrap().element;
+        for (key, name) in std::mem::take(&mut self.deferred_dupnames) {
+            if let Some(node) = find_in(&mut root, key) {
+                dupname(node, &name);
+            }
+        }
         strip_hidden(&mut root);
         root
     }
@@ -163,6 +191,21 @@ impl Document {
     pub(crate) fn open(&mut self, element: Element, attached: bool) {
         let at = attached.then(|| self.top().children.len());
         self.stack.push(Frame { element, at });
+    }
+
+    /// The number of children of the current parent, a position for
+    /// [`Document::open_at`].
+    pub(crate) fn position(&mut self) -> usize {
+        self.top().children.len()
+    }
+
+    /// Opens `element` to be inserted at position `at` of the current
+    /// parent when closed.
+    pub(crate) fn open_at(&mut self, element: Element, at: usize) {
+        self.stack.push(Frame {
+            element,
+            at: Some(at),
+        });
     }
 
     /// Closes the current parent: an attached element is inserted into its
@@ -256,18 +299,36 @@ impl Document {
 
     /// The element with `key`, among the open elements and their children.
     fn find(&mut self, key: Key) -> Option<&mut Element> {
+        let in_scratch = self.scratch.iter_mut().find_map(|n| match n {
+            Node::Element(e) => find_in(e, key),
+            Node::Text(_) => None,
+        });
+        if in_scratch.is_some() {
+            return in_scratch;
+        }
         self.stack
             .iter_mut()
             .rev()
             .find_map(|f| find_in(&mut f.element, key))
     }
 
+    /// Makes `name` a dupname of the element with `key`, now if it is in
+    /// reach, else when the parse ends.
+    fn dupname_key(&mut self, key: Key, name: &str) {
+        match self.find(key) {
+            Some(node) => dupname(node, name),
+            None => self.deferred_dupnames.push((key, name.to_owned())),
+        }
+    }
+
     /// Delivers a message to `msgnode`.
+    /// docutils only adds it to an element whose content model allows
+    /// body elements; elsewhere the message is dropped.
     fn deliver(&mut self, msg: Element, node: &mut Element, msgnode: Option<MsgNode>) {
         match msgnode {
-            Some(MsgNode::Itself) => node.children.push(msg.into()),
-            Some(MsgNode::Parent) => self.append(msg),
-            None => {}
+            Some(MsgNode::Itself) if accepts_body(&node.kind) => node.children.push(msg.into()),
+            Some(MsgNode::Parent) if accepts_body(&self.top().kind) => self.append(msg),
+            _ => {}
         }
     }
 
@@ -293,7 +354,7 @@ impl Document {
                     "Duplicate ID: \"{id}\" used by {old_tag} and {}",
                     starttag_visible(node)
                 );
-                let msg = self.message(ERROR, &text, Vec::new(), At::Exact(line));
+                let msg = self.message(ERROR, &text, Vec::new(), At::node(line));
                 self.deliver(msg, node, msgnode);
             }
         }
@@ -340,6 +401,9 @@ impl Document {
         line: Option<usize>,
     ) {
         let key = self.key(node);
+        let reference = |attr: &str| node.attributes.get_str(attr).map(str::to_owned);
+        self.refs
+            .insert(key, (reference("refname"), reference("refuri")));
         for name in node.attributes.get_list("names").to_vec() {
             match self.names.get(&name) {
                 Some(&owner) if owner != Some(key) => {
@@ -368,12 +432,12 @@ impl Document {
         self.nametypes
             .insert(name.to_owned(), old_explicit || explicit);
         let same_ref = old.and_then(|k| {
-            let old = self.find(k)?;
-            let same = |attr: &str| {
+            let (refname, refuri) = self.refs.get(&k)?;
+            let same = |attr: &str, old: &Option<String>| {
                 node.attributes.get_str(attr).is_some()
-                    && node.attributes.get_str(attr) == old.attributes.get_str(attr)
+                    && node.attributes.get_str(attr) == old.as_deref()
             };
-            Some(same("refname") || same("refuri"))
+            Some(same("refname", refname) || same("refuri", refuri))
         });
         let mut report = None;
         if same_ref == Some(true) {
@@ -396,9 +460,7 @@ impl Document {
                 ));
                 dupname(node, name);
                 if let Some(k) = old {
-                    if let Some(old) = self.find(k) {
-                        dupname(old, name);
-                    }
+                    self.dupname_key(k, name);
                     self.names.insert(name.to_owned(), None);
                 }
             } else {
@@ -409,9 +471,7 @@ impl Document {
                         INFO,
                         format!("Target name overrides implicit target name \"{name}\"."),
                     ));
-                    if let Some(old) = self.find(k) {
-                        dupname(old, name);
-                    }
+                    self.dupname_key(k, name);
                 }
             }
         } else {
@@ -420,9 +480,7 @@ impl Document {
             if let Some(k) = old
                 && !old_explicit
             {
-                if let Some(old) = self.find(k) {
-                    dupname(old, name);
-                }
+                self.dupname_key(k, name);
                 self.names.insert(name.to_owned(), None);
             }
         }
@@ -432,7 +490,7 @@ impl Document {
             } else {
                 vec![self.set_id(node, None, line)]
             };
-            let mut msg = self.message(level, &text, Vec::new(), At::Exact(line));
+            let mut msg = self.message(level, &text, Vec::new(), At::node(line));
             msg.attributes.set("backrefs", backrefs);
             self.deliver(msg, node, msgnode);
         }
@@ -472,15 +530,49 @@ impl Document {
         let name = whitespace_normalize_name(def_name);
         if let Some(&old) = self.substitution_defs.get(&name) {
             let text = format!("Duplicate substitution definition name: \"{name}\".");
-            let msg = self.message(ERROR, &text, Vec::new(), At::Exact(line));
+            let msg = self.message(ERROR, &text, Vec::new(), At::node(line));
             self.append(msg);
-            if let Some(old) = self.find(old) {
-                dupname(old, &name);
-            }
+            self.dupname_key(old, &name);
         }
         let key = self.key(node);
         self.substitution_defs.insert(name, key);
     }
+}
+
+/// Whether elements of `kind` may contain body elements (their docutils
+/// content model mentions `Body`).
+fn accepts_body(kind: &Kind) -> bool {
+    matches!(
+        kind,
+        Kind::Admonition
+            | Kind::Attention
+            | Kind::BlockQuote
+            | Kind::Caution
+            | Kind::Citation
+            | Kind::Compound
+            | Kind::Container
+            | Kind::Danger
+            | Kind::Definition
+            | Kind::Description
+            | Kind::Document
+            | Kind::Entry
+            | Kind::Error
+            | Kind::FieldBody
+            | Kind::Footer
+            | Kind::Footnote
+            | Kind::Header
+            | Kind::Hint
+            | Kind::Important
+            | Kind::Legend
+            | Kind::ListItem
+            | Kind::Note
+            | Kind::Section
+            | Kind::Sidebar
+            | Kind::SystemMessage
+            | Kind::Tip
+            | Kind::Topic
+            | Kind::Warning
+    )
 }
 
 /// Moves `name` from `node`'s names to its dupnames.
@@ -512,12 +604,19 @@ fn find_in(element: &mut Element, key: Key) -> Option<&mut Element> {
     })
 }
 
+/// Removes hidden attributes, and escape nulls from text (docutils keeps
+/// them in Text nodes and removes them when printing).
 fn strip_hidden(element: &mut Element) {
     element.attributes.remove(KEY);
     element.attributes.remove(LINE_INDENT);
     for child in &mut element.children {
-        if let Node::Element(e) = child {
-            strip_hidden(e);
+        match child {
+            Node::Element(e) => strip_hidden(e),
+            Node::Text(t) => {
+                if t.value.contains('\0') {
+                    t.value = crate::util::unescape(&t.value);
+                }
+            }
         }
     }
 }

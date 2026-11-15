@@ -3,7 +3,7 @@
 //! lists, section titles and transitions.
 
 use super::document::{At, Document, ERROR, INFO, MsgNode, Style, WARNING, fixed, paragraph};
-use super::inline::inline_text;
+use super::inline::{Origin, astext, inline_text};
 use super::machine::{Flow, Machine, State, Step, Tr, join, span_of};
 use crate::lines::Line;
 use crate::nodes::{Element, Kind, Node, Text};
@@ -48,7 +48,8 @@ fn split_classifiers(text: &str) -> Vec<String> {
 impl Machine {
     /// A paragraph of `lines`; also whether a literal block follows (the
     /// paragraph ends with `::`).
-    fn paragraph(&self, lines: &[Line]) -> (Vec<Element>, bool) {
+    /// Messages follow the paragraph; `lineno` is its first line.
+    fn paragraph(&self, doc: &mut Document, lines: &[Line], lineno: usize) -> (Vec<Element>, bool) {
         let data = rstrip(&join(lines)).to_owned();
         let (text, literal_next) = if ends_with_literal_marker(&data) {
             let chars: Vec<char> = data.chars().collect();
@@ -64,14 +65,18 @@ impl Machine {
             (data, false)
         };
         let span = span_of(lines);
-        let mut p = Element::new(Kind::Paragraph).with_children(inline_text(&text, span));
+        let (nodes, messages) = inline_text(doc, &text, lineno, &Origin::of(lines));
+        let mut p = Element::new(Kind::Paragraph).with_children(nodes);
         p.span = span;
-        (vec![p], literal_next)
+        let mut out = vec![p];
+        out.extend(messages);
+        (out, literal_next)
     }
 
     /// A blank line ends the paragraph.
     pub(crate) fn text_blank(&mut self, doc: &mut Document, context: &mut Vec<Line>) -> Step {
-        let (p, literal_next) = self.paragraph(context);
+        let lineno = self.abs_line_number().saturating_sub(1);
+        let (p, literal_next) = self.paragraph(doc, context, lineno);
         doc.extend(p);
         if literal_next {
             let nodes = self.literal_block(doc);
@@ -83,6 +88,7 @@ impl Machine {
 
     /// More lines of a paragraph.
     pub(crate) fn text_text(&mut self, doc: &mut Document, context: &mut Vec<Line>) -> Step {
+        let lineno = self.abs_line_number().saturating_sub(1);
         let (block, msg) = match self.get_text_block(doc, true) {
             Ok(block) => (block, None),
             Err((block, line)) => {
@@ -96,7 +102,7 @@ impl Machine {
             }
         };
         let lines: Vec<Line> = context.iter().cloned().chain(block).collect();
-        let (p, literal_next) = self.paragraph(&lines);
+        let (p, literal_next) = self.paragraph(doc, &lines, lineno);
         doc.extend(p);
         if let Some(msg) = msg {
             doc.append(msg);
@@ -203,8 +209,9 @@ impl Machine {
         let (indented, _, offset, blank_finish) = self.get_indented(doc, false, true);
         let mut item = Element::new(Kind::DefinitionListItem);
         item.span = span_of(termline);
-        item.children.extend(term(&termline[0]));
-        let mut definition = Element::new(Kind::Definition);
+        let (terms, messages) = term(doc, &termline[0], dd_lineno.saturating_sub(1));
+        item.children.extend(terms);
+        let mut definition = Element::new(Kind::Definition).with_children(messages);
         if termline[0].text.ends_with("::") {
             definition.children.push(
                 doc.message(
@@ -302,12 +309,12 @@ impl Machine {
             return Ok(State::Body);
         }
         let style = Style::Under(underline.chars().next().unwrap());
-        let title_span = span_of(&context[..1]);
+        let title_line = context[0].clone();
         context.clear();
         self.section(
             doc,
             &title,
-            title_span,
+            (&title_line, 0),
             &source,
             style,
             lineno - 1,
@@ -322,14 +329,14 @@ impl Machine {
         &mut self,
         doc: &mut Document,
         title: &str,
-        title_span: Option<crate::nodes::Span>,
+        title_from: (&Line, usize),
         source: &str,
         style: Style,
         lineno: usize,
         messages: Vec<Element>,
     ) {
         if self.check_subsection(doc, source, style, lineno) {
-            self.new_subsection(doc, title, title_span, messages);
+            self.new_subsection(doc, title, title_from, lineno, messages);
         }
     }
 
@@ -376,12 +383,18 @@ impl Machine {
         &mut self,
         doc: &mut Document,
         title: &str,
-        title_span: Option<crate::nodes::Span>,
+        (title_line, skip): (&Line, usize),
+        lineno: usize,
         messages: Vec<Element>,
     ) {
-        let mut title_el = Element::new(Kind::Title).with_children(inline_text(title, title_span));
+        // The section goes where it is now; title messages go after it.
+        let at = doc.position();
+        let title_span = Some(title_line.span);
+        let origin = Origin::of(std::slice::from_ref(title_line)).skip(skip);
+        let (nodes, title_messages) = inline_text(doc, title, lineno, &origin);
+        let mut title_el = Element::new(Kind::Title).with_children(nodes);
         title_el.span = title_span;
-        let name = normalize_name(&title_el.astext());
+        let name = normalize_name(&astext(&title_el));
         let mut section = Element::new(Kind::Section);
         section.span = title_span;
         section.attributes.push("names", name);
@@ -389,9 +402,12 @@ impl Machine {
         section
             .children
             .extend(messages.into_iter().map(Node::from));
+        section
+            .children
+            .extend(title_messages.into_iter().map(Node::from));
         let line = doc.current_line;
         doc.note_implicit_target(&mut section, Some(MsgNode::Itself), line);
-        doc.open(section, true);
+        doc.open_at(section, at);
     }
 
     /// A blank line after a line of punctuation: a transition.
@@ -484,12 +500,12 @@ impl Machine {
             overline.chars().next().unwrap(),
             underline.chars().next().unwrap(),
         );
-        let title_span = span_of(&[title_line]);
+        let skip = char_len(&title) - char_len(lstrip(&title));
         context.clear();
         self.section(
             doc,
             lstrip(&title),
-            title_span,
+            (&title_line, skip),
             &source,
             style,
             lineno + 1,
@@ -558,10 +574,16 @@ fn transition(line: &Line) -> Element {
 }
 
 /// A definition list term and its classifiers.
-fn term(line: &Line) -> Vec<Node> {
+fn term(doc: &mut Document, line: &Line, lineno: usize) -> (Vec<Node>, Vec<Element>) {
     let mut nodes: Vec<Element> = vec![Element::new(Kind::Term)];
     nodes[0].span = Some(line.span);
-    for node in inline_text(&line.text, Some(line.span)) {
+    let (inlines, messages) = inline_text(
+        doc,
+        &line.text,
+        lineno,
+        &Origin::of(std::slice::from_ref(line)),
+    );
+    for node in inlines {
         match node {
             Node::Text(t) => {
                 let parts = split_classifiers(&t.value);
@@ -585,5 +607,5 @@ fn term(line: &Line) -> Vec<Node> {
             other => nodes.last_mut().unwrap().children.push(other),
         }
     }
-    nodes.into_iter().map(Node::from).collect()
+    (nodes.into_iter().map(Node::from).collect(), messages)
 }

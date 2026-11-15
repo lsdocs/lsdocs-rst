@@ -1,10 +1,10 @@
 """Differential testing of lsdocs-rst against docutils.
 
-Generates random documents from fragments of block-level markup, parses
-each with docutils and with lsdocs-rst (through the crate's `pformat`
-example), and compares the pseudo-XML. Documents whose docutils tree has
-inline markup elements are skipped while lsdocs-rst does not parse inline
-markup.
+Generates random documents from fragments of block-level markup and
+sentences of inline markup, parses each with docutils and with lsdocs-rst
+(through the crate's `pformat` example), and compares the pseudo-XML.
+Directives are all unknown ones and there are no tables (lsdocs-rst does
+not support them yet).
 
 Run through `nur fuzz rst`, which builds the example and pins the docutils
 version. Mismatches are written to `<work>/mismatch-<n>.{rst,want,got}`.
@@ -45,19 +45,40 @@ FRAGMENTS = [
 ]
 PREFIXES = ["", "", "", "", "  ", "    ", "   "]
 
-# Elements only inline markup produces.
-INLINE = (
-    "<substitution_reference", "<reference", "<footnote_reference",
-    "<citation_reference", "<emphasis", "<strong", "<literal>",
-    "<problematic", "<title_reference", "<inline",
-)
+# Words for sentences of inline markup.
+WORDS = [
+    "word", "text", "and", "of", ",", ".", ";", ":", "(", ")", '"', "'",
+    "*em*", "**strong**", "``lit``", "`interp`", "ref_", "anon__",
+    "`phrase ref`_", "`a <http://x.example.com>`_", "`b <alias_>`_",
+    "`<http://y.example.com>`__", "[1]_", "[#]_", "[#n]_", "[*]_", "[CIT]_",
+    "|sub|", "|sub|_", "|sub|__", "_`tgt`", "_`Tgt`", ":emphasis:`r`",
+    ":nosuch:`r`", "`x`:strong:", ":code:`c\\d`", ":math:`y`", ":pep:`8`",
+    ":rfc:`1`", ":raw:`r`", ":index:`i`", ":t:`t`", "http://example.com",
+    "https://a.example.com/p?q=1#f", "me@example.com", "foo:bar", "a*b",
+    "*", "**", "`", "``", "|", "_", "__", "\\*", "(*)", "'*'", "<*>", "x_",
+    "*a", "b*", "**c", "d**", "`e", "f`", "``g", "h``", "*a b*", "``a b``",
+    "PEP 8", "RFC 2822", chr(0x65E5) + chr(0x672C), chr(0x2014),
+    chr(0xAB) + "*" + chr(0xBB), "\\", "\\ ", "e.g.", "end_", "_start",
+    "x__", "[2]", "[x]_", "`a\nb`_", "*c\nd*",
+]
+
+
+def sentence(rng: random.Random) -> str:
+    out = ""
+    for _ in range(rng.randint(1, 8)):
+        out += rng.choice(WORDS) + rng.choice([" ", " ", " ", ""])
+    return out.strip() or "word"
 
 
 def document(rng: random.Random) -> str:
     lines = []
     for _ in range(rng.randint(1, 60)):
         prefix = rng.choice(PREFIXES) if rng.random() < 0.45 else ""
-        lines.append(prefix + rng.choice(FRAGMENTS))
+        if rng.random() < 0.4:
+            marker = rng.choice(["", "", "", "- ", "1. ", ":f: ", "| ", ".. [1] "])
+            lines.append(prefix + marker + sentence(rng))
+        else:
+            lines.append(prefix + rng.choice(FRAGMENTS))
     return "\n".join(lines) + "\n"
 
 
@@ -96,12 +117,9 @@ def main() -> None:
     for i in range(0, len(files), 40):  # keep command lines short
         subprocess.run([args.binary, "--out", str(outputs)] + files[i:i + 40], check=True)
 
-    skipped = mismatches = 0
+    mismatches = 0
     for name, text in texts.items():
         want = docutils_pxml(text)
-        if any(tag in want for tag in INLINE):
-            skipped += 1
-            continue
         got = (outputs / f"{name}.pxml").read_bytes().decode()
         if want != got:
             base = args.work / f"mismatch-{mismatches}"
@@ -109,9 +127,7 @@ def main() -> None:
             base.with_suffix(".want").write_bytes(want.encode())
             base.with_suffix(".got").write_bytes(got.encode())
             mismatches += 1
-    compared = args.count - skipped
-    print(f"seed {args.seed}: {compared - mismatches} of {compared} match docutils "
-          f"({skipped} skipped for inline markup)")
+    print(f"seed {args.seed}: {args.count - mismatches} of {args.count} match docutils")
     if mismatches:
         print(f"mismatches written to {args.work}/mismatch-*")
         raise SystemExit(1)

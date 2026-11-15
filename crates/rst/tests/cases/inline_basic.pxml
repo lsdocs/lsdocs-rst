@@ -1,0 +1,71 @@
+<document source="test data">
+    <paragraph>
+        Some 
+        <emphasis>
+            emphasis
+        , 
+        <strong>
+            strong
+        , 
+        <literal>
+            literal
+        , and 
+        <title_reference>
+            interpreted
+         text.
+    <paragraph>
+        Unclosed 
+        <problematic ids="problematic-1" refid="system-message-1">
+            *
+        emphasis and 
+        <problematic ids="problematic-2" refid="system-message-2">
+            **
+        strong and 
+        <problematic ids="problematic-3" refid="system-message-3">
+            ``
+        literal and 
+        <problematic ids="problematic-4" refid="system-message-4">
+            `
+        interp.
+    <system_message backrefs="problematic-1" ids="system-message-1" level="2" line="3" source="test data" type="WARNING">
+        <paragraph>
+            Inline emphasis start-string without end-string.
+    <system_message backrefs="problematic-2" ids="system-message-2" level="2" line="3" source="test data" type="WARNING">
+        <paragraph>
+            Inline strong start-string without end-string.
+    <system_message backrefs="problematic-3" ids="system-message-3" level="2" line="3" source="test data" type="WARNING">
+        <paragraph>
+            Inline literal start-string without end-string.
+    <system_message backrefs="problematic-4" ids="system-message-4" level="2" line="3" source="test data" type="WARNING">
+        <paragraph>
+            Inline interpreted text or phrase reference start-string without end-string.
+    <paragraph>
+        Quoted: "*" '*' (*) [*] {*} <*> and 
+        <emphasis>
+            nested **not*
+         here*.
+    <paragraph>
+        Escaped *not emphasis* and ``not literal``.
+    <paragraph>
+        <emphasis>
+            multi
+            line
+         emphasis and 
+        <strong>
+            a*b
+         and 
+        <emphasis>
+            a**b
+        .
+    <paragraph>
+        2*x*3 and a*b* and 
+        <emphasis>
+            a*b and * not
+        .
+    <paragraph>
+        <literal>
+            literal with \backslash
+         and 
+        <literal>
+            *no* markup
+        .

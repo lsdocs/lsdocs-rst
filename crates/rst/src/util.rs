@@ -86,6 +86,38 @@ pub(crate) fn unescape(text: &str) -> String {
         .replace('\0', "")
 }
 
+/// Turns escape nulls back into backslashes (docutils'
+/// `unescape(text, restore_backslashes=True)`).
+pub(crate) fn restore_backslashes(text: &str) -> String {
+    text.replace('\0', "\\")
+}
+
+/// Whether `c` is in a table of inclusive code point ranges.
+pub(crate) fn in_table(c: char, table: &[(u32, u32)]) -> bool {
+    let c = c as u32;
+    table
+        .binary_search_by(|&(a, b)| {
+            if c < a {
+                std::cmp::Ordering::Greater
+            } else if c > b {
+                std::cmp::Ordering::Less
+            } else {
+                std::cmp::Ordering::Equal
+            }
+        })
+        .is_ok()
+}
+
+/// Python's `\w`.
+pub(crate) fn is_word(c: char) -> bool {
+    in_table(c, crate::tables::WORD)
+}
+
+/// Python's `\s`.
+pub(crate) fn is_space(c: char) -> bool {
+    in_table(c, crate::tables::WHITESPACE)
+}
+
 /// Splits on escaped whitespace (null and space, or null and line break).
 pub(crate) fn split_escaped_whitespace(text: &str) -> Vec<String> {
     text.split("\0 ")

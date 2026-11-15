@@ -1,0 +1,69 @@
+<document source="test data">
+    <paragraph>
+        A 
+        <reference name="reference" refname="reference">
+            reference
+         and an 
+        <reference anonymous="1" name="anonymous">
+            anonymous
+         one and 
+        <reference name="phrase reference" refname="phrase reference">
+            phrase reference
+        .
+    <paragraph>
+        An 
+        <reference name="embedded" refuri="http://example.com">
+            embedded
+        <target ids="embedded" names="embedded" refuri="http://example.com">
+         and 
+        <reference name="alias" refname="other">
+            alias
+        <target ids="alias" names="alias" refname="other">
+         and
+        <reference name="anonymous embedded" refuri="http://example.org">
+            anonymous embedded
+        .
+    <paragraph>
+        A 
+        <reference name="http://only.example.com" refuri="http://only.example.com">
+            http://only.example.com
+        <target ids="http-only-example-com" names="http://only.example.com" refuri="http://only.example.com">
+         link and 
+        <reference name="name" refuri="abc">
+            name
+        <target ids="name" names="name" refuri="abc">
+        .
+    <paragraph>
+        Footnotes 
+        <footnote_reference ids="footnote-reference-1" refname="1">
+            1
+        , 
+        <footnote_reference auto="1" ids="footnote-reference-2">
+        , 
+        <footnote_reference auto="1" ids="footnote-reference-3" refname="label">
+        , 
+        <footnote_reference auto="*" ids="footnote-reference-4">
+         and a citation 
+        <citation_reference ids="citation-reference-1" refname="cit2002">
+            CIT2002
+        .
+    <paragraph>
+        Not references: a_b, _a, 
+        <reference name="trailing" refname="trailing">
+            trailing
+         
+        <reference name="punctuation" refname="punctuation">
+            punctuation
+        .
+    <paragraph>
+        Email 
+        <reference refuri="mailto:me@example.com">
+            me@example.com
+         and 
+        <reference refuri="http://example.com/path?q=1#frag">
+            http://example.com/path?q=1#frag
+         and
+        <reference refuri="ftp://files.example.com/x">
+            ftp://files.example.com/x
+         and bogus:thing and mailto:a@b.org.
+    <target ids="reference" names="reference" refuri="http://x.example.com">

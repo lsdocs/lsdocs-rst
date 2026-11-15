@@ -18,15 +18,16 @@
 //! `parser-rst` plugin converts its tree into lsdocs' own.
 //!
 //! **Status:** early. The parser handles the block structure (sections,
-//! lists, literal blocks, explicit markup and the rest); inline markup,
-//! tables, directives and roles are being added, each checked against
-//! docutils' own output (see `tests/conformance.rs`).
+//! lists, literal blocks, explicit markup and the rest) and inline markup
+//! with the standard roles; tables and directives are being added, each
+//! checked against docutils' own output (see `tests/conformance.rs`).
 
 pub mod lines;
 pub mod nodes;
 mod parser;
 mod patterns;
 mod pformat;
+mod tables;
 mod util;
 
 pub use nodes::{AttrValue, Attributes, Element, Kind, Node, Span, Text};

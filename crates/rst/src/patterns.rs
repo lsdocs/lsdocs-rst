@@ -26,7 +26,7 @@ pub(crate) fn is_punctuation(c: char) -> bool {
 
 /// `(?:(?!_)\w)`: a word character other than an underscore.
 fn is_name_char(c: char) -> bool {
-    c.is_alphanumeric()
+    c != '_' && crate::util::is_word(c)
 }
 
 /// The possible ends of a `simplename` starting at `p`, longest first:

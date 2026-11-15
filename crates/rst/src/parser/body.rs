@@ -3,7 +3,7 @@
 //! option lists, doctest blocks and line blocks.
 
 use super::document::{At, Document, ERROR, INFO, LINE_INDENT, WARNING, fixed};
-use super::inline::inline_text;
+use super::inline::{Origin, inline_text};
 use super::machine::{Flow, Machine, State, Step, Tr, join, span_of};
 use crate::lines::Line;
 use crate::nodes::{AttrValue, Element, Kind, Node, Text};
@@ -268,11 +268,14 @@ impl Machine {
                 break;
             };
             let text = rstrip(&join(&split.lines)).to_owned();
-            let attribution = Element::new(Kind::Attribution)
-                .with_children(inline_text(&text, span_of(&split.lines)));
+            let lineno = (offset + split.start as isize + 1).max(0) as usize;
+            let (nodes, messages) = inline_text(doc, &text, lineno, &Origin::of(&split.lines));
+            let mut attribution = Element::new(Kind::Attribution).with_children(nodes);
+            attribution.span = span_of(&split.lines);
             quote.children.push(attribution.into());
             super::document::cover_children(&mut quote);
             elements.push(quote);
+            elements.extend(messages);
             offset += split.end as isize;
             indented = indented[split.end.min(indented.len())..].to_vec();
             while indented.first().is_some_and(|l| l.text.is_empty()) {
@@ -438,11 +441,15 @@ impl Machine {
         let name = &marker[1..];
         let name = &name[..name.rfind(':').unwrap_or(name.len())];
         let start = self.line_offset;
+        let lineno = self.abs_line_number();
+        let origin = Origin::of(std::slice::from_ref(self.line())).skip(1);
         let (indented, _, offset, blank_finish) =
             self.get_first_known_indented(doc, end, false, true, true);
         let span = self.span(start, start);
-        let field_name = Element::new(Kind::FieldName).with_children(inline_text(name, span));
-        let mut body = Element::new(Kind::FieldBody);
+        let (nodes, messages) = inline_text(doc, name, lineno, &origin);
+        let mut field_name = Element::new(Kind::FieldName).with_children(nodes);
+        field_name.span = span;
+        let mut body = Element::new(Kind::FieldBody).with_children(messages);
         if !indented.is_empty() {
             doc.open(body, false);
             self.nested_parse(doc, indented, offset);
@@ -575,28 +582,37 @@ impl Machine {
     }
 
     /// One line of a line block, with continuation lines.
-    fn line_block_line(&mut self, doc: &mut Document) -> (Element, bool) {
+    /// Returns the line, its messages, and whether a blank line ended it.
+    fn line_block_line(&mut self, doc: &mut Document) -> (Element, Vec<Element>, bool) {
         let (end, spaces) = patterns::line_block(&chars_of(self.text())).unwrap();
         let empty = rstrip(self.text()) == "|";
         let start = self.line_offset;
+        let lineno = self.abs_line_number();
         let (indented, _, _, blank_finish) =
             self.get_first_known_indented(doc, end, true, true, true);
         let text = join(&indented);
         let span = self.span(start, self.line_offset);
-        let mut line = Element::new(Kind::Line).with_children(inline_text(&text, span));
+        let (nodes, messages) = inline_text(doc, &text, lineno, &Origin::of(&indented));
+        let mut line = Element::new(Kind::Line).with_children(nodes);
         line.span = span;
         if !empty {
             line.attributes.set(LINE_INDENT, spaces as i64 - 1);
         }
-        (line, blank_finish)
+        (line, messages, blank_finish)
     }
 
     /// A line block.
     pub(crate) fn line_block(&mut self, doc: &mut Document, state: State) -> Step {
-        doc.open(Element::new(Kind::LineBlock), true);
+        // The first line is parsed in the block's parent, where the block
+        // already is.
+        let at = doc.position();
         let lineno = self.abs_line_number();
-        let (line, mut blank_finish) = self.line_block_line(doc);
+        let (line, messages, mut blank_finish) = self.line_block_line(doc);
+        doc.open_at(Element::new(Kind::LineBlock), at);
         doc.append(line);
+        for msg in messages {
+            doc.append_to_grandparent(msg);
+        }
         if !blank_finish {
             let (offset, bf) =
                 self.nested_list_parse(doc, self.rest(), State::LineBlock, false, |_| {});
@@ -635,8 +651,11 @@ impl Machine {
 
     /// A later line of a line block.
     pub(crate) fn line_block_next(&mut self, doc: &mut Document, state: State) -> Step {
-        let (line, blank_finish) = self.line_block_line(doc);
+        let (line, messages, blank_finish) = self.line_block_line(doc);
         doc.append(line);
+        for msg in messages {
+            doc.append_to_grandparent(msg);
+        }
         self.blank_finish = blank_finish;
         Ok(state)
     }

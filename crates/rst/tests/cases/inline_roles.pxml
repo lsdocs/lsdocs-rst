@@ -1,0 +1,116 @@
+<document source="test data">
+    <paragraph>
+        <emphasis>
+            a
+        , 
+        <strong>
+            b
+        , 
+        <literal>
+            c
+        , 
+        <literal classes="code">
+            d \e
+        , 
+        <math>
+            x^2
+        .
+    <paragraph>
+        <subscript>
+            s
+         
+        <superscript>
+            t
+         
+        <title_reference>
+            u
+         
+        <title_reference>
+            v
+         
+        <abbreviation>
+            w
+         
+        <acronym>
+            x
+         
+        <title_reference>
+            y
+        .
+    <paragraph>
+        <reference refuri="https://peps.python.org/pep-0008">
+            PEP 8
+         and 
+        <reference refuri="https://tools.ietf.org/html/rfc2822.html#section-1">
+            RFC 2822
+         and 
+        <problematic ids="problematic-1" refid="system-message-1">
+            :pep:`99999`
+         and 
+        <problematic ids="problematic-2" refid="system-message-2">
+            :rfc:`x`
+        .
+    <system_message backrefs="problematic-1" ids="system-message-1" level="3" line="5" source="test data" type="ERROR">
+        <paragraph>
+            PEP number must be a number from 0 to 9999; "99999" is invalid.
+    <system_message backrefs="problematic-2" ids="system-message-2" level="3" line="5" source="test data" type="ERROR">
+        <paragraph>
+            RFC number must be a number greater than or equal to 1; "x" is invalid.
+    <paragraph>
+        <problematic ids="problematic-3" refid="system-message-3">
+            :raw:`html`
+         and 
+        <problematic ids="problematic-4" refid="system-message-4">
+            :index:`entry`
+         and 
+        <problematic ids="problematic-5" refid="system-message-5">
+            :nosuch:`z`
+        .
+    <system_message backrefs="problematic-3" ids="system-message-3" level="3" line="7" source="test data" type="ERROR">
+        <paragraph>
+            No format (Writer name) is associated with this role: "raw".
+            The "raw" role cannot be used directly.
+            Instead, use the "role" directive to create a new role with an associated format.
+    <system_message backrefs="problematic-4" ids="system-message-4" level="3" line="7" source="test data" type="ERROR">
+        <paragraph>
+            Interpreted text role "index" not implemented.
+    <system_message level="1" line="7" source="test data" type="INFO">
+        <paragraph>
+            No role entry for "nosuch" in module "docutils.parsers.rst.languages.en".
+            Trying "nosuch" as canonical role name.
+    <system_message backrefs="problematic-5" ids="system-message-5" level="3" line="7" source="test data" type="ERROR">
+        <paragraph>
+            Unknown interpreted text role "nosuch".
+    <paragraph>
+        <problematic ids="problematic-6" refid="system-message-6">
+            :emphasis:`both`:strong:
+         and 
+        <problematic ids="problematic-7" refid="system-message-7">
+            :emphasis:`ref`_
+         and 
+        <problematic ids="problematic-8" refid="system-message-8">
+            `ref`:emphasis:_
+        .
+    <system_message backrefs="problematic-6" ids="system-message-6" level="2" line="9" source="test data" type="WARNING">
+        <paragraph>
+            Multiple roles in interpreted text (both prefix and suffix present; only one allowed).
+    <system_message backrefs="problematic-7" ids="system-message-7" level="2" line="9" source="test data" type="WARNING">
+        <paragraph>
+            Mismatch: both interpreted text role prefix and reference suffix.
+    <system_message backrefs="problematic-8" ids="system-message-8" level="2" line="9" source="test data" type="WARNING">
+        <paragraph>
+            Mismatch: both interpreted text role suffix and reference suffix.
+    <paragraph>
+        Unclosed 
+        <problematic ids="problematic-9" refid="system-message-9">
+            `
+        interpreted and :role:
+        <problematic ids="problematic-10" refid="system-message-10">
+            `
+        unclosed.
+    <system_message backrefs="problematic-9" ids="system-message-9" level="2" line="11" source="test data" type="WARNING">
+        <paragraph>
+            Inline interpreted text or phrase reference start-string without end-string.
+    <system_message backrefs="problematic-10" ids="system-message-10" level="2" line="11" source="test data" type="WARNING">
+        <paragraph>
+            Inline interpreted text or phrase reference start-string without end-string.

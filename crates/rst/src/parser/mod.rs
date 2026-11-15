@@ -4,15 +4,16 @@
 //! Supported so far: the block structure (sections, transitions,
 //! paragraphs, block quotes, bullet, enumerated, definition, field and
 //! option lists, literal, line and doctest blocks, footnotes, citations,
-//! hyperlink targets, substitution definitions and comments). Directives
-//! are reported as unknown, inline markup is kept as text, and tables are
-//! not recognized yet.
+//! hyperlink targets, substitution definitions and comments) and inline
+//! markup (docutils' `Inliner`, with the standard roles). Directives are
+//! reported as unknown, and tables are not recognized yet.
 
 mod body;
 mod document;
 mod explicit;
 mod inline;
 mod machine;
+mod roles;
 mod text;
 
 use crate::lines::lines;

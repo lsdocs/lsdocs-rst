@@ -2,8 +2,5 @@
 # handles them. The test fails if one of these starts passing, so the list
 # stays accurate: remove the name when a case passes.
 
-# 8c: inline markup
-emphasis
-
 # 8d: directives, roles, tables
 directive_known

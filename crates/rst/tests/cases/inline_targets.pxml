@@ -1,0 +1,99 @@
+<document source="test data">
+    <system_message backrefs="inline-target-1" level="2" line="2" source="test data" type="WARNING">
+        <paragraph>
+            Duplicate explicit target name: "inline target".
+    <paragraph>
+        An 
+        <target dupnames="inline\ target" ids="inline-target">
+            inline target
+         and another 
+        <target dupnames="inline\ target" ids="inline-target-1">
+            inline target
+        .
+    <paragraph>
+        Substitution 
+        <substitution_reference refname="name">
+            name
+         and 
+        <reference refname="ref">
+            <substitution_reference refname="ref">
+                ref
+         and 
+        <reference anonymous="1">
+            <substitution_reference refname="anon">
+                anon
+         and 
+        <problematic ids="problematic-1" refid="system-message-1">
+            |
+        unclosed.
+    <system_message backrefs="problematic-1" ids="system-message-1" level="2" line="3" source="test data" type="WARNING">
+        <paragraph>
+            Inline substitution_reference start-string without end-string.
+    <section ids="title-with-emphasis" names="title\ with\ emphasis">
+        <title>
+            Title with 
+            <emphasis>
+                emphasis
+    <section ids="title-with-target-and-target-in-title" names="title\ with\ target\ and\ target\ in\ title">
+        <title>
+            Title 
+            <reference name="with target" refname="with target">
+                with target
+             and 
+            <target ids="target-in-title" names="target\ in\ title">
+                target in title
+        <definition_list>
+            <definition_list_item>
+                <term>
+                    Term 
+                    <emphasis>
+                        with
+                     emphasis
+                <classifier>
+                    classifier
+                <definition>
+                    <paragraph>
+                        Definition with 
+                        <literal>
+                            literal
+                        .
+            <definition_list_item>
+                <term>
+                    term : not classifier
+                <definition>
+                    <paragraph>
+                        Def.
+        <field_list>
+            <field>
+                <field_name>
+                    Field 
+                    <emphasis>
+                        name
+                <field_body>
+                    <paragraph>
+                        body 
+                        <emphasis>
+                            text
+        <line_block>
+            <line>
+                Line 
+                <emphasis>
+                    one
+            <line>
+                Line 
+                <problematic ids="problematic-2" refid="system-message-2">
+                    **
+                two
+        <system_message backrefs="problematic-2" ids="system-message-2" level="2" line="20" source="test data" type="WARNING">
+            <paragraph>
+                Inline strong start-string without end-string.
+        <block_quote>
+            <paragraph>
+                Quote 
+                <emphasis>
+                    text
+                .
+            <attribution>
+                Attribution 
+                <emphasis>
+                    name
