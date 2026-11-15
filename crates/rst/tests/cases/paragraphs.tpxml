@@ -1,0 +1,6 @@
+<document source="test data">
+    <paragraph>
+        First paragraph,
+        over two lines.
+    <paragraph>
+        Second paragraph.

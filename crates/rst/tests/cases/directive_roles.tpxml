@@ -1,0 +1,51 @@
+<document source="test data">
+    <paragraph>
+        <inline classes="custom">
+            text
+         and 
+        <inline classes="custom">
+            more
+        .
+    <paragraph>
+        <emphasis classes="extra">
+            emphasized
+    <paragraph>
+        <raw classes="html" format="html" xml:space="preserve">
+            <b>bold</b>
+    <paragraph>
+        <literal classes="code python">
+            print()
+    <system_message level="1" line="19" source="test data" type="INFO">
+        <paragraph>
+            No role entry for "nosuch" in module "docutils.parsers.rst.languages.en".
+            Trying "nosuch" as canonical role name.
+    <system_message level="3" line="19" source="test data" type="ERROR">
+        <paragraph>
+            Unknown interpreted text role "nosuch".
+        <literal_block xml:space="preserve">
+            .. role:: bad(nosuch)
+    <system_message level="3" line="21" source="test data" type="ERROR">
+        <paragraph>
+            "role" directive arguments not valid role names: "bad args here".
+        <literal_block xml:space="preserve">
+            .. role:: bad args here
+    <paragraph>
+        <strong>
+            default strong
+    <paragraph>
+        <title_reference>
+            back to title
+    <system_message level="1" line="31" source="test data" type="INFO">
+        <paragraph>
+            No role entry for "nosuch" in module "docutils.parsers.rst.languages.en".
+            Trying "nosuch" as canonical role name.
+    <system_message level="3" line="31" source="test data" type="ERROR">
+        <paragraph>
+            Unknown interpreted text role "nosuch".
+        <literal_block xml:space="preserve">
+            .. default-role:: nosuch
+    <system_message level="3" line="33" source="test data" type="ERROR">
+        <paragraph>
+            "role" directive requires arguments on the first line.
+        <literal_block xml:space="preserve">
+            .. role::

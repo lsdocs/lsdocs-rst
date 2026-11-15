@@ -1,0 +1,84 @@
+<document source="test data">
+    <topic>
+        <title>
+            Topic Title
+        <paragraph>
+            Topic body.
+    <sidebar>
+        <title>
+            Sidebar Title
+        <subtitle>
+            Sub
+        <paragraph>
+            Sidebar body.
+    <system_message level="3" line="10" source="test data" type="ERROR">
+        <paragraph>
+            Content block expected for the "sidebar" directive; none found.
+        <literal_block xml:space="preserve">
+            .. sidebar:: No title
+    <rubric classes="r">
+        A 
+        <emphasis>
+            rubric
+    <block_quote classes="epigraph">
+        <paragraph>
+            No dictionary is complete.
+        <attribution>
+            Someone
+    <block_quote classes="highlights">
+        <paragraph>
+            Highlighted.
+    <block_quote classes="pull-quote">
+        <paragraph>
+            Pulled.
+    <compound>
+        <paragraph>
+            First.
+        <paragraph>
+            Second.
+    <container classes="one two">
+        <paragraph>
+            In a container.
+    <container classes="bad-class">
+        <paragraph>
+            x
+    <literal_block xml:space="preserve">
+        Some 
+        <emphasis>
+            parsed
+         
+        <literal>
+            literal
+        
+          text.
+    <literal_block classes="code python" xml:space="preserve">
+        print(1)
+          indented
+    <literal_block classes="code" xml:space="preserve">
+        <inline classes="ln">
+             9 
+        a
+        <inline classes="ln">
+            10 
+        b
+    <math_block xml:space="preserve">
+        x^2
+    <math_block xml:space="preserve">
+        y^2
+    <line_block>
+        <line>
+            Line one
+        <line_block>
+            <line>
+                indented
+        <line>
+            Line two
+    <bullet_list bullet="-">
+        <list_item>
+            <system_message level="3" line="71" source="test data" type="ERROR">
+                <paragraph>
+                    The "topic" directive may not be used within topics or body elements.
+                <literal_block xml:space="preserve">
+                    .. topic:: Nested
+                    
+                       Not allowed.

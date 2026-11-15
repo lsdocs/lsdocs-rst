@@ -1,0 +1,34 @@
+<document source="test data">
+    <bullet_list bullet="-">
+        <list_item>
+            <paragraph>
+                One
+        <list_item>
+            <paragraph>
+                Two
+            <bullet_list bullet="-">
+                <list_item>
+                    <paragraph>
+                        Nested a
+                <list_item>
+                    <paragraph>
+                        Nested b
+        <list_item>
+            <paragraph>
+                Three
+                continues here.
+    <bullet_list bullet="*">
+        <list_item>
+            <paragraph>
+                Other bullet
+    <bullet_list bullet="+">
+        <list_item>
+            <paragraph>
+                Third kind
+    <system_message level="2" line="13" source="test data" type="WARNING">
+        <paragraph>
+            Bullet list ends without a blank line; unexpected unindent.
+    <bullet_list bullet="-">
+        <list_item>
+            <paragraph>
+                Back

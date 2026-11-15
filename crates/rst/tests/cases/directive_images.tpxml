@@ -1,0 +1,53 @@
+<document source="test data">
+    <image uri="picture.png">
+    <image align="center" alt="Alternate" classes="framed" height="100" ids="pic" names="pic" scale="50" uri="picture.png" width="50%">
+    <reference refuri="http://example.com">
+        <image uri="picture.png">
+    <problematic ids="problematic-1" refid="system-message-1">
+    <system_message level="3" line="18" source="test data" type="ERROR">
+        <paragraph>
+            Error in "image" directive: "top" is not a valid value for the "align" option.  Valid values for "align" are: "left", "center", "right".
+        <literal_block xml:space="preserve">
+            .. image:: picture.png
+               :align: top
+    <system_message level="3" line="21" source="test data" type="ERROR">
+        <paragraph>
+            Error in "image" directive:
+            invalid option value: (option: "width"; value: '10 furlongs')
+            not a positive number or measure of one of the following units:
+            em, ex, ch, rem, vw, vh, vmin, vmax, cm, mm, Q, in, pt, pc, px, %.
+        <literal_block xml:space="preserve">
+            .. image:: picture.png
+               :width: 10 furlongs
+    <system_message level="3" line="24" source="test data" type="ERROR">
+        <paragraph>
+            Error in "image" directive:
+            1 argument(s) required, 0 supplied.
+        <literal_block xml:space="preserve">
+            .. image::
+    <figure align="right" classes="wide" width="300px">
+        <image alt="Fig" uri="picture.png">
+        <caption>
+            The 
+            <emphasis>
+                caption
+            .
+        <legend>
+            <paragraph>
+                The legend.
+    <figure>
+        <image uri="picture.png">
+        <legend>
+            <paragraph>
+                Legend only.
+    <figure>
+        <image uri="picture.png">
+    <system_message level="3" line="42" source="test data" type="ERROR">
+        <paragraph>
+            Figure caption must be a paragraph or empty comment.
+        <literal_block xml:space="preserve">
+            .. figure:: picture.png
+            
+               - not a caption
+    <figure ids="named-figure" names="named\ figure">
+        <image uri="picture.png">

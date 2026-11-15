@@ -1,0 +1,15 @@
+<document source="test data">
+    <system_message level="1" line="1" source="test data" type="INFO">
+        <paragraph>
+            No directive entry for "nosuchdirective" in module "docutils.parsers.rst.languages.en".
+            Trying "nosuchdirective" as canonical directive name.
+    <system_message level="3" line="1" source="test data" type="ERROR">
+        <paragraph>
+            Unknown directive type "nosuchdirective".
+        <literal_block xml:space="preserve">
+            .. nosuchdirective:: argument
+               :option: value
+            
+               Content.
+    <paragraph>
+        Text.

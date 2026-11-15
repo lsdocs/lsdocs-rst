@@ -1,0 +1,72 @@
+<document source="test data">
+    <paragraph>
+        A 
+        <reference name="reference" refuri="http://x.example.com">
+            reference
+         and an 
+        <problematic ids="problematic-1" refid="system-message-1">
+            anonymous__
+         one and 
+        <problematic ids="problematic-4" refid="system-message-5">
+            `phrase reference`_
+        .
+    <paragraph>
+        An 
+        <reference name="embedded" refuri="http://example.com">
+            embedded
+        <target ids="embedded" names="embedded" refuri="http://example.com">
+         and 
+        <problematic ids="problematic-5" refid="system-message-6">
+            `alias <other_>`_
+        <target ids="alias" names="alias" refname="other">
+         and
+        <reference name="anonymous embedded" refuri="http://example.org">
+            anonymous embedded
+        .
+    <paragraph>
+        A 
+        <reference name="http://only.example.com" refuri="http://only.example.com">
+            http://only.example.com
+        <target ids="http-only-example-com" names="http://only.example.com" refuri="http://only.example.com">
+         link and 
+        <reference name="name" refuri="abc">
+            name
+        <target ids="name" names="name" refuri="abc">
+        .
+    <paragraph>
+        Footnotes 
+        <problematic ids="footnote-reference-1" refid="system-message-7">
+            [1]_
+        , 
+        <problematic ids="problematic-2 footnote-reference-2" refid="system-message-3">
+            [#]_
+        , 
+        <problematic ids="footnote-reference-3" refid="system-message-8">
+            [#label]_
+        , 
+        <problematic ids="problematic-3 footnote-reference-4" refid="system-message-4">
+            [*]_
+         and a citation 
+        <problematic ids="citation-reference-1" refid="system-message-9">
+            [CIT2002]_
+        .
+    <paragraph>
+        Not references: a_b, _a, 
+        <problematic ids="problematic-6" refid="system-message-10">
+            trailing_
+         
+        <problematic ids="problematic-7" refid="system-message-11">
+            punctuation_
+        .
+    <paragraph>
+        Email 
+        <reference refuri="mailto:me@example.com">
+            me@example.com
+         and 
+        <reference refuri="http://example.com/path?q=1#frag">
+            http://example.com/path?q=1#frag
+         and
+        <reference refuri="ftp://files.example.com/x">
+            ftp://files.example.com/x
+         and bogus:thing and mailto:a@b.org.
+    <target ids="reference" names="reference" refuri="http://x.example.com">

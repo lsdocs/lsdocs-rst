@@ -1,0 +1,16 @@
+<document source="test data">
+    <section ids="section-1" names="日本語の見出し">
+        <title>
+            日本語の見出し
+    <section ids="short" names="short\ 日本">
+        <title>
+            Short 日本
+        <system_message level="2" line="5" source="test data" type="WARNING">
+            <paragraph>
+                Title underline too short.
+            <literal_block xml:space="preserve">
+                Short 日本
+                ======
+    <section ids="unicode-title" names="ünïcödé\ títle">
+        <title>
+            Ünïcödé Títle

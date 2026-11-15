@@ -1,0 +1,21 @@
+<document source="test data">
+    <bullet_list bullet="-">
+        <list_item>
+            <paragraph>
+                Item
+            <system_message level="3" line="4" source="test data" type="ERROR">
+                <paragraph>
+                    Unexpected section title.
+                <literal_block xml:space="preserve">
+                    Title
+                    =====
+            <paragraph>
+                Text.
+        <list_item>
+            <paragraph>
+                Item two
+            <system_message level="3" line="10" source="test data" type="ERROR">
+                <paragraph>
+                    Unexpected section title or transition.
+                <literal_block xml:space="preserve">
+                    ======

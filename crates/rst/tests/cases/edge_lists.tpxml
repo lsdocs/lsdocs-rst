@@ -1,0 +1,51 @@
+<document source="test data">
+    <bullet_list bullet="-">
+        <list_item>
+        <list_item>
+            <paragraph>
+                Empty item above.
+    <paragraph>
+        1. One
+        Unindented text.
+    <enumerated_list enumtype="lowerroman" prefix="" start="3" suffix=".">
+        <list_item>
+            <paragraph>
+                Not first roman
+    <system_message level="1" line="7" source="test data" type="INFO">
+        <paragraph>
+            Enumerated list start value not ordinal-1: "iii" (ordinal 3)
+    <paragraph>
+        z. Last letter
+        #. Auto after
+    <paragraph>
+        (a) Paren one
+        (c) Skips
+    <enumerated_list enumtype="lowerroman" prefix="" suffix=".">
+        <list_item>
+            <paragraph>
+                Roman i
+    <system_message level="2" line="16" source="test data" type="WARNING">
+        <paragraph>
+            Enumerated list ends without a blank line; unexpected unindent.
+    <paragraph>
+        ii. Roman ii
+        iv. Roman iv
+    <paragraph>
+        IIII. Bad roman
+        continued
+    <option_list>
+        <option_list_item>
+            <option_group>
+                <option>
+                    <option_string>
+                        -a
+            <description>
+                <paragraph>
+                    Description on its own line.
+    <system_message level="2" line="24" source="test data" type="WARNING">
+        <paragraph>
+            Option list ends without a blank line; unexpected unindent.
+    <paragraph>
+        -b
+    <paragraph>
+        Text.

@@ -1,0 +1,7 @@
+<document source="test data">
+    <paragraph>
+        Code follows:
+    <literal_block xml:space="preserve">
+        let x = 1;
+    <paragraph>
+        After.

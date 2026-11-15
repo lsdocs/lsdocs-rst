@@ -1,0 +1,14 @@
+<document source="test data">
+    <section dupnames="same" ids="same">
+        <title>
+            Same
+        <paragraph>
+            One.
+    <section dupnames="same" ids="same-1">
+        <title>
+            Same
+        <system_message backrefs="same-1" level="1" line="7" source="test data" type="INFO">
+            <paragraph>
+                Duplicate implicit target name: "same".
+        <paragraph>
+            Two.

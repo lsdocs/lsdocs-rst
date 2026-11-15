@@ -16,6 +16,7 @@ import random
 import subprocess
 from pathlib import Path
 
+from docutils.core import publish_doctree
 from docutils.frontend import get_default_settings
 from docutils.parsers.rst import Parser, roles
 from docutils.utils import new_document
@@ -118,12 +119,23 @@ def docutils_pxml(text: str) -> str:
     return doc.pformat()
 
 
+def docutils_transformed(text: str) -> str:
+    roles._roles.clear()
+    doc = publish_doctree(text, source_path="test data", settings_overrides={
+        "syntax_highlight": "none", "file_insertion_enabled": False,
+        "report_level": 5, "halt_level": 5, "warning_stream": io.StringIO(),
+    })
+    return doc.pformat()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("binary")
     ap.add_argument("work", type=Path)
     ap.add_argument("--count", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--transforms", action="store_true",
+                    help="compare transformed trees (publish_doctree)")
     args = ap.parse_args()
 
     rng = random.Random(args.seed)
@@ -142,15 +154,16 @@ def main() -> None:
     files = [str(inputs / f"{name}.rst") for name in texts]
     for i in range(0, len(files), 40):  # keep command lines short
         chunk = files[i:i + 40]
-        if subprocess.run([args.binary, "--out", str(outputs)] + chunk,
+        flags = ["--transforms"] if args.transforms else []
+        if subprocess.run([args.binary, "--out", str(outputs)] + flags + chunk,
                           capture_output=True).returncode != 0:
             # A crash: run the files one by one; a crashing one has no output.
             for f in chunk:
-                subprocess.run([args.binary, "--out", str(outputs), f], capture_output=True)
+                subprocess.run([args.binary, "--out", str(outputs)] + flags + [f], capture_output=True)
 
     mismatches = 0
     for name, text in texts.items():
-        want = docutils_pxml(text)
+        want = docutils_transformed(text) if args.transforms else docutils_pxml(text)
         out = outputs / f"{name}.pxml"
         got = out.read_bytes().decode() if out.exists() else "(lsdocs-rst panicked)"
         if want != got:

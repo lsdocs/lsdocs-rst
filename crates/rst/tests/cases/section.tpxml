@@ -1,0 +1,10 @@
+<document ids="title" names="title" source="test data" title="Title">
+    <title>
+        Title
+    <paragraph>
+        Text.
+    <section ids="subsection" names="subsection">
+        <title>
+            Subsection
+        <paragraph>
+            More text.

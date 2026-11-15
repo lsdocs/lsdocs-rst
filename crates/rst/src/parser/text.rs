@@ -415,7 +415,10 @@ impl Machine {
         if char_len(strip(&context[0].text)) < 4 {
             return self.state_correction(doc, context, 1);
         }
-        doc.append(transition(&context[0]));
+        let mut t = transition(&context[0]);
+        t.attributes
+            .set(super::document::LINE, self.abs_line_number() as i64 - 1);
+        doc.append(t);
         context.clear();
         Ok(State::Body)
     }
@@ -429,7 +432,10 @@ impl Machine {
         if char_len(strip(&context[0].text)) < 4 {
             self.state_correction(doc, context, 1)?;
         }
-        doc.append(transition(&context[0]));
+        let mut t = transition(&context[0]);
+        t.attributes
+            .set(super::document::LINE, self.abs_line_number() as i64 - 1);
+        doc.append(t);
         Ok(())
     }
 

@@ -1,0 +1,37 @@
+<document source="test data">
+    <decoration>
+        <header>
+            <paragraph>
+                The header.
+            <paragraph>
+                More header.
+        <footer>
+            <paragraph>
+                The footer.
+    <topic classes="contents" ids="contents" names="contents">
+        <title>
+            Contents
+        <bullet_list classes="auto-toc">
+            <list_item>
+                <paragraph>
+                    <reference ids="toc-entry-1" refid="title">
+                        <generated classes="sectnum">
+                            P1   
+                        Title
+    <topic classes="contents local" ids="table-of-contents" names="table\ of\ contents">
+        <title>
+            Table of Contents
+        <bullet_list classes="auto-toc">
+            <list_item>
+                <paragraph>
+                    <reference ids="toc-entry-2" refid="title">
+                        <generated classes="sectnum">
+                            P1   
+                        Title
+    <section ids="title" names="title">
+        <title auto="1" refid="toc-entry-1">
+            <generated classes="sectnum">
+                P1   
+            Title
+        <paragraph>
+            Text.

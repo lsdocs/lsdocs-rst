@@ -1,0 +1,26 @@
+<document source="test data">
+    <line_block>
+        <line_block>
+            <line>
+                Deep first
+        <line>
+            Shallow
+        <line_block>
+            <line>
+                Middle
+            <line_block>
+                <line>
+                    Deeper
+                <line>
+            <line>
+                After blank line
+    <system_message level="2" line="2" source="test data" type="WARNING">
+        <paragraph>
+            Line block ends without a blank line.
+    <paragraph>
+        Text right after.
+    <line_block>
+        <line>
+            A
+        <line>
+            B

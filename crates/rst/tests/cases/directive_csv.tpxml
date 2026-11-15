@@ -1,0 +1,190 @@
+<document source="test data">
+    <table align="right" classes="colwidths-given">
+        <title>
+            Frozen 
+            <emphasis>
+                Delights
+        <tgroup cols="3">
+            <colspec colwidth="15">
+            <colspec colwidth="10">
+            <colspec colwidth="30">
+            <thead>
+                <row>
+                    <entry>
+                        <paragraph>
+                            Treat
+                    <entry>
+                        <paragraph>
+                            Quantity
+                    <entry>
+                        <paragraph>
+                            Description
+            <tbody>
+                <row>
+                    <entry>
+                        <paragraph>
+                            Albatross
+                    <entry>
+                        <paragraph>
+                            2.99
+                    <entry>
+                        <paragraph>
+                            On a stick!
+                <row>
+                    <entry>
+                        <paragraph>
+                            Crunchy Frog
+                    <entry>
+                        <paragraph>
+                            1.49
+                    <entry>
+                        <paragraph>
+                            If we took the bones out, it wouldn't be
+                            crunchy, now would it?
+                <row>
+                    <entry>
+                        <paragraph>
+                            Gannet Ripple
+                    <entry>
+                        <paragraph>
+                            1.99
+                    <entry>
+                        <paragraph>
+                            On a stick!
+    <table>
+        <tgroup cols="3">
+            <colspec colwidth="33" stub="1">
+            <colspec colwidth="33">
+            <colspec colwidth="33">
+            <thead>
+                <row>
+                    <entry>
+                        <paragraph>
+                            a
+                    <entry>
+                        <block_quote>
+                            <paragraph>
+                                b
+                    <entry>
+                        <block_quote>
+                            <paragraph>
+                                c
+            <tbody>
+                <row>
+                    <entry>
+                        <paragraph>
+                            1
+                    <entry>
+                        <block_quote>
+                            <paragraph>
+                                2
+                    <entry>
+                <row>
+                    <entry>
+                        <paragraph>
+                            x
+                    <entry>
+                        <paragraph>
+                            y
+                    <entry>
+                        <paragraph>
+                            z
+    <table>
+        <tgroup cols="2">
+            <colspec colwidth="50">
+            <colspec colwidth="50">
+            <tbody>
+                <row>
+                    <entry>
+                        <paragraph>
+                            a, b
+                    <entry>
+                        <paragraph>
+                            c,d
+    <table>
+        <tgroup cols="1">
+            <colspec colwidth="100">
+            <tbody>
+                <row>
+                    <entry>
+                        <paragraph>
+                            a    b
+    <system_message level="3" line="32" source="test data" type="ERROR">
+        <paragraph>
+            Error with CSV data in "csv-table" directive:
+            unexpected end of data
+        <literal_block xml:space="preserve">
+            .. csv-table::
+            
+               "unclosed
+    <system_message level="3" line="36" source="test data" type="ERROR">
+        <paragraph>
+            Error with CSV data in "csv-table" directive:
+            ',' expected after '"'
+        <literal_block xml:space="preserve">
+            .. csv-table::
+            
+               "a"b
+    <system_message level="2" line="40" source="test data" type="WARNING">
+        <paragraph>
+            File and URL access deactivated; ignoring "csv-table" directive.
+        <literal_block xml:space="preserve">
+            .. csv-table::
+               :file: data.csv
+    <system_message level="2" line="43" source="test data" type="WARNING">
+        <paragraph>
+            The "csv-table" directive requires content; none supplied.
+        <literal_block xml:space="preserve">
+            .. csv-table::
+    <system_message level="3" line="45" source="test data" type="ERROR">
+        <paragraph>
+            "csv-table" widths do not match the number of columns in table (3).
+        <literal_block xml:space="preserve">
+            .. csv-table::
+               :widths: 1 2
+            
+               a, b, c
+    <system_message level="3" line="50" source="test data" type="ERROR">
+        <paragraph>
+            Error in "csv-table" directive:
+            invalid option value: (option: "delim"; value: 'ab')
+            'ab' invalid; must be a single character or a Unicode code.
+        <literal_block xml:space="preserve">
+            .. csv-table::
+               :delim: ab
+            
+               x
+    <system_message level="3" line="55" source="test data" type="ERROR">
+        <paragraph>
+            3 header row(s) specified but only 2 row(s) of data supplied ("csv-table" directive).
+        <literal_block xml:space="preserve">
+            .. csv-table::
+               :header-rows: 3
+            
+               a
+               b
+    <table>
+        <tgroup cols="2">
+            <colspec colwidth="50">
+            <colspec colwidth="50">
+            <tbody>
+                <row>
+                    <entry>
+                        <bullet_list bullet="-">
+                            <list_item>
+                                <paragraph>
+                                    <emphasis>
+                                        Cell
+                                     with markup
+                    <entry>
+                        <paragraph>
+                            <literal>
+                                literal
+                <row>
+                    <entry>
+                    <entry>
+                <row>
+                    <entry>
+                        <paragraph>
+                            blank line above
+                    <entry>

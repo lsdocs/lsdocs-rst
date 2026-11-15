@@ -3,7 +3,9 @@
 use super::options::{Opt, OptValue, class_option, py_repr, unicode_code};
 use super::{Call, Failure, Run, Spec, failure};
 use crate::nodes::{AttrValue, Element, Kind, Node, Text};
-use crate::parser::document::{At, Document, ERROR, INFO, LINE_INDENT, MsgNode, WARNING, fixed};
+use crate::parser::document::{
+    At, Document, ERROR, INFO, LINE, LINE_INDENT, MsgNode, RAW, WARNING, fixed,
+};
 use crate::parser::inline::{Origin, astext, inline_text};
 use crate::parser::machine::{Machine, State};
 use crate::util::{make_id, normalize_name, split_whitespace, strip, whitespace_normalize_name};
@@ -744,6 +746,7 @@ fn image(_: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Nod
             crate::parser::explicit::TargetRef::Name(name) => {
                 r.attributes.set("name", whitespace_normalize_name(&name));
                 r.attributes.set("refname", normalize_name(&name));
+                doc.note_refname(&mut r);
             }
         }
         reference = Some(r);
@@ -972,6 +975,11 @@ fn class(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Nod
         ],
     );
     p.span = call.span;
+    p.attributes.set(RAW, call.block_text.clone());
+    if let Some(line) = doc.current_line {
+        p.attributes.set(LINE, line as i64);
+    }
+    doc.note_pending(&mut p, 210);
     Ok(vec![p.into()])
 }
 
@@ -1340,13 +1348,14 @@ fn contents(_: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<
         .collect();
     let mut p = pending("docutils.transforms.parts.Contents", details);
     p.span = call.span;
+    doc.note_pending(&mut p, 720);
     topic.children.push(p.into());
     let mut out = vec![Node::from(topic)];
     out.extend(messages.into_iter().map(Node::from));
     Ok(out)
 }
 
-fn sectnum(_: &mut Machine, _: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
+fn sectnum(_: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
     let details = call
         .options
         .iter()
@@ -1354,6 +1363,7 @@ fn sectnum(_: &mut Machine, _: &mut Document, call: &mut Call) -> Result<Vec<Nod
         .collect();
     let mut p = pending("docutils.transforms.parts.SectNum", details);
     p.span = call.span;
+    doc.note_pending(&mut p, 710);
     Ok(vec![p.into()])
 }
 
@@ -1381,6 +1391,7 @@ fn target_notes(
     for (k, v) in &call.options {
         p.attributes.set(format!(".details.{k}"), detail(v));
     }
+    doc.note_pending(&mut p, 540);
     Ok(vec![p.into()])
 }
 

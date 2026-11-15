@@ -1,0 +1,47 @@
+<document source="test data">
+    <note>
+        <paragraph>
+            A note with 
+            <emphasis>
+                emphasis
+            .
+        <paragraph>
+            Second paragraph.
+    <warning classes="special" ids="my-warning" names="my-warning">
+        <paragraph>
+            Watch out.
+    <admonition classes="admonition-custom-title">
+        <title>
+            Custom 
+            <emphasis>
+                Title
+        <paragraph>
+            Body.
+    <admonition classes="mine">
+        <title>
+            Classed
+        <paragraph>
+            Body.
+    <system_message level="3" line="20" source="test data" type="ERROR">
+        <paragraph>
+            Content block expected for the "tip" directive; none found.
+        <literal_block xml:space="preserve">
+            .. tip::
+    <danger>
+        <paragraph>
+            Danger
+    <attention>
+        <paragraph>
+            x
+    <caution>
+        <paragraph>
+            x
+    <error>
+        <paragraph>
+            x
+    <hint>
+        <paragraph>
+            x
+    <important>
+        <paragraph>
+            x

@@ -1,0 +1,19 @@
+<document source="test data">
+    <transition>
+    <system_message level="2" line="1" source="test data" type="WARNING">
+        <paragraph>
+            Transition at the start of the document.
+    <paragraph>
+        Para.
+    <system_message level="3" line="5" source="test data" type="ERROR">
+        <paragraph>
+            Invalid section title or transition marker.
+        <literal_block xml:space="preserve">
+            ----------
+            ----------
+    <paragraph>
+        Para two.
+    <transition>
+    <system_message level="2" line="10" source="test data" type="WARNING">
+        <paragraph>
+            Transition at the end of the document.

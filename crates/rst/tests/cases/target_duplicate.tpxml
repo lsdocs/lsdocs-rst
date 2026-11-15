@@ -1,0 +1,13 @@
+<document dupnames="name" ids="name-2" source="test data" title="Name">
+    <title>
+        Name
+    <target dupnames="name" ids="name" refuri="http://a.example.com">
+    <system_message level="2" line="2" source="test data" type="WARNING">
+        <paragraph>
+            Duplicate explicit target name: "name".
+    <target dupnames="name" ids="name-1" refuri="http://b.example.com">
+    <system_message backrefs="name-2" level="1" line="5" source="test data" type="INFO">
+        <paragraph>
+            Duplicate implicit target name: "name".
+    <paragraph>
+        Text.

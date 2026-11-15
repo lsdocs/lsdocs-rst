@@ -1,0 +1,9 @@
+<document source="test data">
+    <paragraph>
+        Para.
+    <system_message level="3" line="3" source="test data" type="ERROR">
+        <paragraph>
+            Incomplete section title.
+        <literal_block xml:space="preserve">
+            =====
+            Title

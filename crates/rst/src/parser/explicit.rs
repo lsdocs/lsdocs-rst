@@ -4,7 +4,7 @@
 //!
 //! Directives themselves are in the `directives` module.
 
-use super::document::{At, Document, ERROR, MsgNode, WARNING, fixed};
+use super::document::{At, Document, ERROR, MsgNode, NoteList, WARNING, fixed};
 use super::machine::{Machine, State, Step, join, span_of};
 use crate::lines::Line;
 use crate::nodes::{Element, Kind, Node, Span, Text};
@@ -196,6 +196,7 @@ impl Machine {
         if citation {
             node.children.push(label_el().into());
             node.attributes.push("names", name.clone());
+            doc.note_footnote_kind(&mut node, NoteList::Citation);
             doc.note_explicit_target(&mut node, Some(MsgNode::Itself), srcline);
         } else {
             if let Some(rest) = name.strip_prefix('#') {
@@ -211,7 +212,15 @@ impl Machine {
                 node.children.push(label_el().into());
                 node.attributes.push("names", name.clone());
             }
-            doc.set_id(&mut node, None, srcline);
+            let list = match node.attributes.get("auto") {
+                Some(crate::nodes::AttrValue::Int(_)) => NoteList::AutoFootnote,
+                Some(_) => NoteList::SymbolFootnote,
+                None => NoteList::Footnote,
+            };
+            doc.note_footnote_kind(&mut node, list);
+            if let Some(line) = srcline {
+                node.attributes.set(super::document::LINE, line as i64);
+            }
             if name.is_empty() {
                 doc.set_id(&mut node, Some(MsgNode::Itself), srcline);
             } else {
@@ -237,11 +246,13 @@ impl Machine {
 
     /// A hyperlink target: `.. _name: uri`, `.. _name: other_`, `.. __: uri`.
     fn hyperlink_target(&mut self, doc: &mut Document, end: usize) -> Result<Construct, String> {
+        let line = self.text().to_owned();
         let start = self.line_offset;
         let lineno = self.abs_line_number();
         let (block, _, _, blank_finish) =
             self.get_first_known_indented(doc, end, true, false, true);
         let span = self.span(start, self.line_offset);
+        let blocktext = format!("{}{}", take_chars(&line, end), join(&block));
         let mut block: Vec<String> = block.iter().map(|l| escape2null(&l.text)).collect();
         let mut escaped = block.first().cloned().unwrap_or_default();
         let mut index = 0;
@@ -259,7 +270,7 @@ impl Machine {
         let first = format!("{} ", block[0]);
         let cut = char_len(&block[0]).saturating_sub(char_len(&escaped) - match_end);
         block[0] = strip(skip_chars(&first, cut)).to_owned();
-        let target = self.make_target(doc, &block, lineno, name, span);
+        let target = self.make_target(doc, &block, lineno, name, span, blocktext);
         Ok((vec![target.into()], blank_finish))
     }
 
@@ -267,11 +278,13 @@ impl Machine {
     fn anonymous_target(&mut self, doc: &mut Document) -> Construct {
         let start = self.line_offset;
         let lineno = self.abs_line_number();
-        let end = patterns::anonymous(&self.text().chars().collect::<Vec<_>>()).unwrap();
+        let line = self.text().to_owned();
+        let end = patterns::anonymous(&line.chars().collect::<Vec<_>>()).unwrap();
         let (block, _, _, blank_finish) = self.get_first_known_indented(doc, end, true, true, true);
         let span = self.span(start, self.line_offset);
+        let blocktext = format!("{}{}", take_chars(&line, end), join(&block));
         let block: Vec<String> = block.iter().map(|l| escape2null(&l.text)).collect();
-        let target = self.make_target(doc, &block, lineno, None, span);
+        let target = self.make_target(doc, &block, lineno, None, span, blocktext);
         (vec![target.into()], blank_finish)
     }
 
@@ -283,13 +296,16 @@ impl Machine {
         lineno: usize,
         name: Option<String>,
         span: Option<Span>,
+        blocktext: String,
     ) -> Element {
         let mut target = Element::new(Kind::Target);
         target.span = span;
+        target.attributes.set(super::document::RAW, blocktext);
         match parse_target(block) {
             TargetRef::Name(refname) => {
                 target.attributes.set("refname", normalize_name(&refname));
                 add_target(doc, name, "", &mut target, lineno);
+                doc.note_indirect_target(&mut target);
             }
             TargetRef::Uri(uri) => add_target(doc, name, &uri, &mut target, lineno),
         }

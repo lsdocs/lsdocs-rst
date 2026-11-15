@@ -17,6 +17,7 @@ mod machine;
 mod roles;
 mod table;
 mod text;
+mod transforms;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -37,6 +38,8 @@ pub(crate) struct Extensions {
     pub(crate) roles: HashMap<String, Arc<dyn Role>>,
     /// Keep unknown directives as generic nodes instead of reporting them.
     pub(crate) keep_unknown: bool,
+    /// Run docutils' transforms after parsing.
+    pub(crate) transforms: bool,
 }
 
 /// The longest line docutils parses (its `line_length_limit` setting).
@@ -106,6 +109,15 @@ impl Parser {
         self
     }
 
+    /// With `transforms`, the tree is also transformed the way docutils'
+    /// `publish_doctree` does it: references resolved, footnotes numbered,
+    /// substitutions replaced, `pending` elements processed. Without (the
+    /// default), it is the parser's tree, as docutils' parser returns it.
+    pub fn transforms(mut self, transforms: bool) -> Self {
+        Arc::make_mut(&mut self.extensions).transforms = transforms;
+        self
+    }
+
     /// Parses `text` into a document: an element of kind
     /// [`Kind::Document`]. Problems are reported as `system_message`
     /// elements in the tree; parsing itself never fails.
@@ -133,7 +145,7 @@ impl Parser {
             let mut top = machine::Machine::top(lines);
             top.run(&mut doc, machine::State::Body);
         }
-        let mut root = doc.finish();
+        let mut root = doc.finish(self.extensions.transforms);
         root.span = Some(Span::new(0, text.len()));
         root
     }

@@ -1,0 +1,74 @@
+<document source="test data" title="The Title">
+    <meta content="a, b" name="keywords">
+    <meta content="An example." lang="en" name="description">
+    <meta content="text/html" http-equiv="Content-Type">
+    <system_message level="1" line="34" source="test data" type="INFO">
+        <paragraph>
+            No content for meta tag "empty".
+        <literal_block xml:space="preserve">
+            :empty:
+    <substitution_definition names="r">
+        replacement 
+        <emphasis>
+            text
+    <substitution_definition names="u">
+        ©
+        €
+        €
+    <substitution_definition ltrim="1" names="t" rtrim="1">
+        x
+    <system_message level="3" line="5" source="test data" type="ERROR">
+        <paragraph>
+            Invalid character code: 0x110000
+            ValueError: chr() arg not in range(0x110000)
+        <literal_block xml:space="preserve">
+            unicode:: 0x110000
+    <system_message level="2" line="5" source="test data" type="WARNING">
+        <paragraph>
+            Substitution definition "bad" empty or invalid.
+        <literal_block xml:space="preserve">
+            .. |bad| unicode:: 0x110000
+    <system_message level="3" line="6" source="test data" type="ERROR">
+        <paragraph>
+            Error in "replace" directive: may contain a single paragraph only.
+    <system_message level="2" line="6" source="test data" type="WARNING">
+        <paragraph>
+            Substitution definition "two" empty or invalid.
+        <literal_block xml:space="preserve">
+            .. |two| replace:: one
+            
+               two
+    <system_message level="3" line="10" source="test data" type="ERROR">
+        <paragraph>
+            Invalid context: the "replace" directive can only be used within a substitution definition.
+        <literal_block xml:space="preserve">
+            .. replace:: outside
+    <raw format="html" xml:space="preserve">
+        <b>raw</b>
+    <system_message level="2" line="16" source="test data" type="WARNING">
+        <paragraph>
+            "raw" directive disabled.
+        <literal_block xml:space="preserve">
+            .. raw:: html
+               :file: x.html
+    <system_message level="3" line="19" source="test data" type="ERROR">
+        <paragraph>
+            Content block expected for the "raw" directive; none found.
+        <literal_block xml:space="preserve">
+            .. raw:: latex
+    <system_message level="2" line="21" source="test data" type="WARNING">
+        <paragraph>
+            "include" directive disabled.
+        <literal_block xml:space="preserve">
+            .. include:: other.rst
+    <paragraph classes="special">
+        Classed paragraph.
+    <paragraph classes="a b">
+        Content one.
+    <paragraph classes="a b">
+        Content two.
+    <system_message level="3" line="35" source="test data" type="ERROR">
+        <paragraph>
+            Invalid class attribute value for "class" directive: "!!!".
+        <literal_block xml:space="preserve">
+            .. class:: !!!

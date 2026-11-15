@@ -10,10 +10,17 @@ use crate::util::{make_id, whitespace_normalize_name};
 /// Identifies an element that has registered names or ids, so a later
 /// duplicate can update it wherever it is in the tree. Stored in a hidden
 /// attribute until the parse ends.
-type Key = i64;
+pub(crate) type Key = i64;
 
 /// The hidden attribute holding an element's [`Key`].
-const KEY: &str = "\0key";
+pub(crate) const KEY: &str = "\0key";
+
+/// A hidden attribute: an element's raw source (docutils' `rawsource`),
+/// for the `problematic` element that replaces an unresolved reference.
+pub(crate) const RAW: &str = "\0raw";
+
+/// A hidden attribute: an element's line number (docutils' `line`).
+pub(crate) const LINE: &str = "\0line";
 
 /// A hidden attribute: a line block line's indentation.
 pub(crate) const LINE_INDENT: &str = "\0indent";
@@ -104,11 +111,15 @@ pub(crate) struct Document {
     /// `document.current_line`).
     pub(crate) current_line: Option<usize>,
     pub(crate) title_styles: Vec<Style>,
-    names: HashMap<String, Option<Key>>,
+    pub(crate) names: HashMap<String, Option<Key>>,
+    /// The id each name refers to (`None` for a duplicate name).
+    pub(crate) nameids: HashMap<String, Option<String>>,
+    /// What docutils notes during parsing for its transforms.
+    pub(crate) notes: Notes,
     nametypes: HashMap<String, bool>,
-    ids: HashMap<String, Key>,
+    pub(crate) ids: HashMap<String, Key>,
     id_counter: HashMap<String, usize>,
-    substitution_defs: HashMap<String, Key>,
+    pub(crate) substitution_defs: HashMap<String, Key>,
     next_key: Key,
     /// Inline nodes parsed but not yet in the tree (they can be
     /// duplicates' earlier targets).
@@ -138,6 +149,8 @@ impl Document {
             current_line: None,
             title_styles: Vec::new(),
             names: HashMap::new(),
+            nameids: HashMap::new(),
+            notes: Notes::default(),
             nametypes: HashMap::new(),
             ids: HashMap::new(),
             id_counter: HashMap::new(),
@@ -151,12 +164,16 @@ impl Document {
         }
     }
 
-    /// Closes every open element and returns the finished root.
-    pub(crate) fn finish(mut self) -> Element {
+    /// Closes every open element, runs docutils' transforms if asked, and
+    /// returns the finished root.
+    pub(crate) fn finish(mut self, transforms: bool) -> Element {
         while self.stack.len() > 1 {
             self.close();
         }
         let mut root = self.stack.pop().unwrap().element;
+        if transforms {
+            super::transforms::apply(&mut self, &mut root);
+        }
         for (key, name) in std::mem::take(&mut self.deferred_dupnames) {
             if let Some(node) = find_in(&mut root, key) {
                 dupname(node, &name);
@@ -370,7 +387,7 @@ impl Document {
     // -- names and ids ----------------------------------------------------
 
     /// `node`'s key, assigning one if needed.
-    fn key(&mut self, node: &mut Element) -> Key {
+    pub(crate) fn key(&mut self, node: &mut Element) -> Key {
         if let Some(AttrValue::Int(k)) = node.attributes.get(KEY) {
             return *k;
         }
@@ -440,7 +457,11 @@ impl Document {
                 self.deliver(msg, node, msgnode);
             }
         }
-        ids.last().cloned().unwrap_or_default()
+        let last = ids.last().cloned().unwrap_or_default();
+        for name in node.attributes.get_list("names") {
+            self.nameids.insert(name.clone(), Some(last.clone()));
+        }
+        last
     }
 
     /// A new id for `node` (docutils' `document.create_id`, with the
@@ -544,6 +565,7 @@ impl Document {
                 if let Some(k) = old {
                     self.dupname_key(k, name);
                     self.names.insert(name.to_owned(), None);
+                    self.nameids.insert(name.to_owned(), None);
                 }
             } else {
                 let key = self.key(node);
@@ -564,6 +586,7 @@ impl Document {
             {
                 self.dupname_key(k, name);
                 self.names.insert(name.to_owned(), None);
+                self.nameids.insert(name.to_owned(), None);
             }
         }
         if let Some((level, text)) = report {
@@ -601,6 +624,89 @@ impl Document {
         self.set_id(node, msgnode, line);
     }
 
+    /// Notes a reference by name (docutils' `note_refname`).
+    pub(crate) fn note_refname(&mut self, node: &mut Element) {
+        let key = self.key(node);
+        if let Some(name) = node.attributes.get_str("refname") {
+            self.notes
+                .refnames
+                .entry(name.to_owned())
+                .or_default()
+                .push(key);
+        }
+    }
+
+    /// Notes a reference by id (docutils' `note_refid`).
+    pub(crate) fn note_refid(&mut self, node: &mut Element) {
+        let key = self.key(node);
+        if let Some(id) = node.attributes.get_str("refid") {
+            self.notes
+                .refids
+                .entry(id.to_owned())
+                .or_default()
+                .push(key);
+        }
+    }
+
+    /// Notes a target pointing to another target by name.
+    pub(crate) fn note_indirect_target(&mut self, node: &mut Element) {
+        let key = self.key(node);
+        self.notes.indirect_targets.push(key);
+        self.notes.snapshots.insert(key, node.clone());
+        if !node.attributes.get_list("names").is_empty() {
+            self.note_refname(node);
+        }
+    }
+
+    /// Notes a footnote or citation, or a reference to one, in `list`.
+    pub(crate) fn note_footnote_kind(&mut self, node: &mut Element, list: NoteList) {
+        let key = self.key(node);
+        match list {
+            NoteList::AutoFootnote => {
+                self.set_id(node, None, None);
+                self.notes.autofootnotes.push(key);
+            }
+            NoteList::SymbolFootnote => {
+                self.set_id(node, None, None);
+                self.notes.symbol_footnotes.push(key);
+            }
+            NoteList::Footnote => {
+                self.set_id(node, None, None);
+                self.notes.footnotes.push(key);
+            }
+            NoteList::Citation => self.notes.citations.push(key),
+            NoteList::AutoFootnoteRef => {
+                self.set_id(node, None, None);
+                self.notes.autofootnote_refs.push(key);
+            }
+            NoteList::SymbolFootnoteRef => {
+                self.set_id(node, None, None);
+                self.notes.symbol_footnote_refs.push(key);
+            }
+            NoteList::FootnoteRef | NoteList::CitationRef => {
+                self.set_id(node, None, None);
+                let name = node
+                    .attributes
+                    .get_str("refname")
+                    .unwrap_or_default()
+                    .to_owned();
+                let map = if list == NoteList::FootnoteRef {
+                    &mut self.notes.footnote_refs
+                } else {
+                    &mut self.notes.citation_refs
+                };
+                map.entry(name).or_default().push(key);
+                self.note_refname(node);
+            }
+        }
+    }
+
+    /// Notes a `pending` element for the transform at `priority`.
+    pub(crate) fn note_pending(&mut self, node: &mut Element, priority: u32) {
+        let key = self.key(node);
+        self.notes.pending.push((priority, key));
+    }
+
     /// Registers a substitution definition; a later one with the same name
     /// wins.
     pub(crate) fn note_substitution_def(
@@ -617,6 +723,9 @@ impl Document {
             self.dupname_key(old, &name);
         }
         let key = self.key(node);
+        self.notes
+            .substitution_names
+            .insert(crate::util::normalize_name(&name), name.clone());
         self.substitution_defs.insert(name, key);
     }
 }
@@ -657,8 +766,45 @@ fn accepts_body(kind: &Kind) -> bool {
     )
 }
 
+/// The lists of [`Document::note_footnote_kind`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NoteList {
+    AutoFootnote,
+    SymbolFootnote,
+    Footnote,
+    Citation,
+    AutoFootnoteRef,
+    SymbolFootnoteRef,
+    FootnoteRef,
+    CitationRef,
+}
+
+/// What docutils' `document.note_*` methods record for the transforms,
+/// as element keys in the order noted.
+#[derive(Debug, Default)]
+pub(crate) struct Notes {
+    pub(crate) refnames: HashMap<String, Vec<Key>>,
+    pub(crate) refids: HashMap<String, Vec<Key>>,
+    pub(crate) indirect_targets: Vec<Key>,
+    pub(crate) autofootnotes: Vec<Key>,
+    pub(crate) symbol_footnotes: Vec<Key>,
+    pub(crate) footnotes: Vec<Key>,
+    pub(crate) citations: Vec<Key>,
+    pub(crate) autofootnote_refs: Vec<Key>,
+    pub(crate) symbol_footnote_refs: Vec<Key>,
+    pub(crate) footnote_refs: HashMap<String, Vec<Key>>,
+    pub(crate) citation_refs: HashMap<String, Vec<Key>>,
+    /// Case-insensitive substitution names.
+    pub(crate) substitution_names: HashMap<String, String>,
+    /// Pending elements and their transforms' priorities.
+    pub(crate) pending: Vec<(u32, Key)>,
+    /// Copies of noted indirect targets: docutils reports a broken one
+    /// even if it never reached the tree (say, in a discarded title).
+    pub(crate) snapshots: HashMap<Key, Element>,
+}
+
 /// Moves `name` from `node`'s names to its dupnames.
-fn dupname(node: &mut Element, name: &str) {
+pub(crate) fn dupname(node: &mut Element, name: &str) {
     node.attributes.push("dupnames", name);
     let mut names = node.attributes.get_list("names").to_vec();
     if let Some(i) = names.iter().position(|n| n == name) {
@@ -676,7 +822,7 @@ fn starttag_visible(node: &Element) -> String {
     copy.starttag()
 }
 
-fn find_in(element: &mut Element, key: Key) -> Option<&mut Element> {
+pub(crate) fn find_in(element: &mut Element, key: Key) -> Option<&mut Element> {
     if element.attributes.get(KEY) == Some(&AttrValue::Int(key)) {
         return Some(element);
     }
@@ -689,8 +835,15 @@ fn find_in(element: &mut Element, key: Key) -> Option<&mut Element> {
 /// Removes hidden attributes, and escape nulls from text (docutils keeps
 /// them in Text nodes and removes them when printing).
 fn strip_hidden(element: &mut Element) {
-    element.attributes.remove(KEY);
-    element.attributes.remove(LINE_INDENT);
+    let hidden: Vec<String> = element
+        .attributes
+        .iter()
+        .filter(|(name, _)| name.starts_with('\0'))
+        .map(|(name, _)| name.to_owned())
+        .collect();
+    for name in hidden {
+        element.attributes.remove(&name);
+    }
     for child in &mut element.children {
         match child {
             Node::Element(e) => strip_hidden(e),

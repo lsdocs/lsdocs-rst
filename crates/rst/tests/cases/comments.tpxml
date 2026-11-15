@@ -1,0 +1,18 @@
+<document source="test data">
+    <comment xml:space="preserve">
+    <paragraph>
+        Text.
+    <comment xml:space="preserve">
+        A comment
+        on two lines.
+    <comment xml:space="preserve">
+        Comment starting on the next line.
+    <comment xml:space="preserve">
+        Not a target, really
+    <comment xml:space="preserve">
+        Another comment
+    <system_message level="2" line="13" source="test data" type="WARNING">
+        <paragraph>
+            Explicit markup ends without a blank line; unexpected unindent.
+    <paragraph>
+        Text after.

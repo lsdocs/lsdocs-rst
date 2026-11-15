@@ -1,0 +1,27 @@
+<document source="test data">
+    <system_message level="2" line="1" source="test data" type="WARNING">
+        <paragraph>
+            Substitution definition "missing" missing contents.
+        <literal_block xml:space="preserve">
+            .. |missing|
+    <system_message level="2" line="3" source="test data" type="WARNING">
+        <paragraph>
+            Substitution definition "text" empty or invalid.
+        <literal_block xml:space="preserve">
+            .. |text| just text
+    <system_message level="1" line="5" source="test data" type="INFO">
+        <paragraph>
+            No directive entry for "nosuch" in module "docutils.parsers.rst.languages.en".
+            Trying "nosuch" as canonical directive name.
+    <system_message level="3" line="5" source="test data" type="ERROR">
+        <paragraph>
+            Unknown directive type "nosuch".
+        <literal_block xml:space="preserve">
+            nosuch:: arg
+    <system_message level="2" line="5" source="test data" type="WARNING">
+        <paragraph>
+            Substitution definition "dir" empty or invalid.
+        <literal_block xml:space="preserve">
+            .. |dir| nosuch:: arg
+    <paragraph>
+        Text.

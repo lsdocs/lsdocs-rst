@@ -10,7 +10,7 @@
 //! ([`escape2null`]) and Text nodes keep them; the parser removes them
 //! from every Text node when it finishes (docutils does so when printing).
 
-use super::document::{At, Document, MsgNode, WARNING};
+use super::document::{At, Document, MsgNode, NoteList, RAW, WARNING};
 use super::roles;
 use crate::lines::Line;
 use crate::nodes::{Element, Kind, Node, Span, Text};
@@ -638,7 +638,9 @@ impl Inliner<'_> {
                 text = restore_backslashes(&text);
             }
             let text_end = match_end + end.group.1;
-            let node = element(kind, &text, self.span(base, match_start, text_end));
+            let mut node = element(kind, &text, self.span(base, match_start, text_end));
+            node.attributes
+                .set(RAW, restore_backslashes(&text_of(s, match_start, text_end)));
             return Found {
                 before: match_start,
                 nodes: vec![node.into()],
@@ -688,12 +690,16 @@ impl Inliner<'_> {
             if found.end_string.ends_with('_') {
                 let mut reference = Element::new(Kind::Reference);
                 reference.span = subref.span;
+                reference
+                    .attributes
+                    .set(RAW, format!("|{subref_text}{}", found.end_string));
                 if found.end_string.ends_with("__") {
                     reference.attributes.set("anonymous", true);
                 } else {
                     reference
                         .attributes
                         .set("refname", normalize_name(&subref_text));
+                    self.doc.note_refname(&mut reference);
                 }
                 reference.children.push(found.nodes.remove(0));
                 found.nodes = vec![reference.into()];
@@ -852,10 +858,14 @@ impl Inliner<'_> {
         reference
             .attributes
             .set("name", whitespace_normalize_name(&unescaped));
+        reference.attributes.set(RAW, rawsource);
         let mut nodes = Vec::new();
         if rawsource.ends_with("__") {
             match &target {
-                Some(_) if alias_is_name => reference.attributes.set("refname", alias),
+                Some(_) if alias_is_name => {
+                    reference.attributes.set("refname", alias);
+                    self.doc.note_refname(&mut reference);
+                }
                 Some(_) => reference.attributes.set("refuri", alias),
                 None => reference.attributes.set("anonymous", true),
             }
@@ -864,15 +874,22 @@ impl Inliner<'_> {
             t.attributes.push("names", refname);
             if alias_is_name {
                 reference.attributes.set("refname", alias);
+                self.doc.note_indirect_target(&mut t);
+                self.doc.note_refname(&mut reference);
             } else {
                 reference.attributes.set("refuri", alias);
             }
             self.doc
                 .note_implicit_target(&mut t, Some(MsgNode::Parent), None);
+            if alias_is_name {
+                let key = self.doc.key(&mut t);
+                self.doc.notes.snapshots.insert(key, t.clone());
+            }
             nodes.push(reference.into());
             nodes.push(t.into());
         } else {
             reference.attributes.set("refname", refname);
+            self.doc.note_refname(&mut reference);
             nodes.push(reference.into());
         }
         nodes
@@ -883,28 +900,33 @@ impl Inliner<'_> {
         let label = text_of(s, q, e);
         let mut refname = normalize_name(&label);
         let span = self.span(base, m.group.0, m.group.1);
+        let raw = format!("[{label}]_");
         let node = if citation {
             let mut r = element(Kind::CitationReference, &label, span);
+            r.attributes.set(RAW, raw);
             r.attributes.set("refname", refname);
-            self.doc.set_id(&mut r, None, None);
+            self.doc.note_footnote_kind(&mut r, NoteList::CitationRef);
             r
         } else {
             let mut r = Element::new(Kind::FootnoteReference);
             r.span = span;
+            r.attributes.set(RAW, raw);
             if let Some(rest) = refname.strip_prefix('#') {
                 refname = rest.to_owned();
                 r.attributes.set("auto", 1i64);
-                self.doc.set_id(&mut r, None, None);
+                self.doc
+                    .note_footnote_kind(&mut r, NoteList::AutoFootnoteRef);
             } else if refname == "*" {
                 refname.clear();
                 r.attributes.set("auto", "*");
-                self.doc.set_id(&mut r, None, None);
+                self.doc
+                    .note_footnote_kind(&mut r, NoteList::SymbolFootnoteRef);
             } else {
                 r.children.push(Text::new(label, span).into());
             }
             if !refname.is_empty() {
                 r.attributes.set("refname", refname);
-                self.doc.set_id(&mut r, None, None);
+                self.doc.note_footnote_kind(&mut r, NoteList::FootnoteRef);
             }
             r
         };
@@ -926,10 +948,12 @@ impl Inliner<'_> {
             self.span(base, m.group.0, m.group.1),
         );
         r.attributes.set("name", whitespace_normalize_name(&name));
+        r.attributes.set(RAW, text_of(s, m.group.0, m.group.1));
         if anonymous {
             r.attributes.set("anonymous", true);
         } else {
             r.attributes.set("refname", normalize_name(&name));
+            self.doc.note_refname(&mut r);
         }
         Found {
             before: m.group.0,

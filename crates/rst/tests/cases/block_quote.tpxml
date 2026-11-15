@@ -1,0 +1,6 @@
+<document source="test data">
+    <paragraph>
+        Normal.
+    <block_quote>
+        <paragraph>
+            Quoted.

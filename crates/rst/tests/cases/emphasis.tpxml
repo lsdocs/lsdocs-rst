@@ -1,0 +1,9 @@
+<document source="test data">
+    <paragraph>
+        Some 
+        <emphasis>
+            emphasis
+         and 
+        <strong>
+            strong
+         text.

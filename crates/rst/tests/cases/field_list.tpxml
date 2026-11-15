@@ -1,0 +1,27 @@
+<document source="test data">
+    <docinfo>
+        <field classes="field">
+            <field_name>
+                Field
+            <field_body>
+                <paragraph>
+                    Value
+        <field classes="other-field">
+            <field_name>
+                Other field
+            <field_body>
+                <paragraph>
+                    Value two
+                    continues.
+        <field classes="empty">
+            <field_name>
+                Empty
+            <field_body>
+        <field classes="long">
+            <field_name>
+                Long
+            <field_body>
+                <paragraph>
+                    Body on the next line.
+                <paragraph>
+                    Second paragraph.

@@ -1,0 +1,4 @@
+<document source="test data">
+    <system_message level="3" source="test data" type="ERROR">
+        <paragraph>
+            Line 3 exceeds the line-length-limit.
