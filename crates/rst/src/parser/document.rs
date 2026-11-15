@@ -116,6 +116,8 @@ pub(crate) struct Document {
     /// Roles by lower-case name: custom ones, those looked up so far, and
     /// the default role under the empty name.
     pub(crate) roles: HashMap<String, super::roles::Role>,
+    /// What the caller added.
+    pub(crate) extensions: std::sync::Arc<super::Extensions>,
     /// The `refname` and `refuri` of each element with registered names.
     refs: HashMap<Key, (Option<String>, Option<String>)>,
     /// Duplicate names for elements that were not in reach when found
@@ -143,6 +145,7 @@ impl Document {
             next_key: 0,
             scratch: Vec::new(),
             roles: HashMap::new(),
+            extensions: Default::default(),
             refs: HashMap::new(),
             deferred_dupnames: Vec::new(),
         }

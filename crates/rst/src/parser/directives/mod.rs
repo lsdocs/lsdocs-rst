@@ -2,8 +2,10 @@
 //! content (docutils' `run_directive` and `parse_directive_block`), and
 //! running the directive.
 
+mod csv;
 pub(crate) mod options;
 mod standard;
+mod tables;
 
 use std::rc::Rc;
 
@@ -15,24 +17,85 @@ use crate::util::{split_whitespace, strip};
 use options::{Opt, OptValue, convert, py_repr_opt};
 
 /// What a directive accepts (docutils' `Directive` class attributes).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct Spec {
     pub(crate) required: usize,
     pub(crate) optional: usize,
     pub(crate) final_whitespace: bool,
     /// Known options; `None` for a directive without options.
     pub(crate) options: Option<&'static [(&'static str, Opt)]>,
+    /// Options of a directive or role registered by the caller, or any
+    /// option at all (as text).
+    pub(crate) extra: Extra,
     pub(crate) has_content: bool,
 }
 
+/// Options beyond the static table.
+#[derive(Debug, Clone)]
+pub(crate) enum Extra {
+    None,
+    Public(Vec<(String, crate::extension::OptionKind)>),
+    Any,
+}
+
+/// How one option is converted.
+enum Converter<'a> {
+    Standard(Opt),
+    Public(&'a crate::extension::OptionKind),
+    Text,
+}
+
+impl Converter<'_> {
+    fn convert(&self, value: Option<&str>) -> Result<OptValue, String> {
+        use crate::extension::OptionKind as K;
+        let opt = match self {
+            Converter::Standard(o) => *o,
+            Converter::Text => Opt::Unchanged,
+            Converter::Public(k) => match k {
+                K::Flag => Opt::Flag,
+                K::Text => Opt::Unchanged,
+                K::RequiredText => Opt::UnchangedRequired,
+                K::Path => Opt::Path,
+                K::Uri => Opt::Uri,
+                K::Int => Opt::Int,
+                K::NonNegativeInt => Opt::NonNegativeInt,
+                K::Percentage => Opt::Percentage,
+                K::Length => Opt::LengthOrUnitless,
+                K::LengthOrPercentage => Opt::LengthOrPercentageOrUnitless,
+                K::Class => Opt::Class,
+                K::Choice(values) => {
+                    let values: Vec<&str> = values.iter().map(String::as_str).collect();
+                    return options::choice(value, &values).map(OptValue::Str);
+                }
+            },
+        };
+        convert(opt, value)
+    }
+}
+
 impl Spec {
-    const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Spec {
             required: 0,
             optional: 0,
             final_whitespace: false,
             options: None,
+            extra: Extra::None,
             has_content: false,
+        }
+    }
+
+    fn converter(&self, name: &str) -> Option<Converter<'_>> {
+        if let Some(&(_, opt)) = self.options.unwrap_or(&[]).iter().find(|(n, _)| *n == name) {
+            return Some(Converter::Standard(opt));
+        }
+        match &self.extra {
+            Extra::Public(list) => list
+                .iter()
+                .find(|(n, _)| n == name)
+                .map(|(_, k)| Converter::Public(k)),
+            Extra::Any => Some(Converter::Text),
+            Extra::None => None,
         }
     }
 
@@ -42,6 +105,8 @@ impl Spec {
 
     fn has_options(&self) -> bool {
         self.options.is_some_and(|o| !o.is_empty())
+            || matches!(&self.extra, Extra::Public(l) if !l.is_empty())
+            || matches!(self.extra, Extra::Any)
     }
 }
 
@@ -105,6 +170,9 @@ pub(crate) fn failure(level: i64, message: impl Into<String>) -> Failure {
 }
 
 pub(crate) type Run = fn(&mut Machine, &mut Document, &mut Call) -> Result<Vec<Node>, Failure>;
+
+/// A directive implementation, standard or registered.
+type RunDyn<'a> = &'a dyn Fn(&mut Machine, &mut Document, &mut Call) -> Result<Vec<Node>, Failure>;
 
 /// The canonical directive for an English directive name.
 fn canonical(name: &str) -> Option<&'static str> {
@@ -179,8 +247,32 @@ impl Machine {
         in_substitution: bool,
     ) -> (Vec<Node>, bool) {
         let normname = type_name.to_lowercase();
+        // Directives the caller registered come first, without lookup
+        // messages (like docutils' `register_directive`).
+        if let Some(directive) = doc.extensions.directives.get(&normname).cloned() {
+            let public = directive.spec();
+            let spec = Spec {
+                required: public.required_arguments,
+                optional: public.optional_arguments,
+                final_whitespace: public.final_argument_whitespace,
+                extra: Extra::Public(public.options),
+                has_content: public.has_content,
+                ..Spec::new()
+            };
+            let run = |m: &mut Machine, doc: &mut Document, call: &mut Call| {
+                let mut cx = crate::extension::DirectiveContext {
+                    run: DirectiveRun { m, doc, call },
+                };
+                directive
+                    .run(&mut cx)
+                    .map_err(|e| failure(e.level, e.message))
+            };
+            return self.run_directive(doc, type_name, end, spec, &run, presets, in_substitution);
+        }
         let found = match canonical(&normname) {
             Some(c) => registered(c),
+            // Kept unknown directives need no lookup message.
+            None if doc.extensions.keep_unknown && registered(&normname).is_none() => None,
             None => {
                 let info = doc.message(
                     INFO,
@@ -198,7 +290,25 @@ impl Machine {
         };
         match found {
             Some((spec, run)) => {
-                self.run_directive(doc, type_name, end, spec, run, presets, in_substitution)
+                self.run_directive(doc, type_name, end, spec, &run, presets, in_substitution)
+            }
+            None if doc.extensions.keep_unknown => {
+                let spec = Spec {
+                    optional: 1,
+                    final_whitespace: true,
+                    extra: Extra::Any,
+                    has_content: true,
+                    ..Spec::new()
+                };
+                self.run_directive(
+                    doc,
+                    type_name,
+                    end,
+                    spec,
+                    &generic_directive,
+                    presets,
+                    in_substitution,
+                )
             }
             None => self.unknown_directive(doc, type_name),
         }
@@ -211,7 +321,7 @@ impl Machine {
         type_name: &str,
         end: usize,
         spec: Spec,
-        run: Run,
+        run: RunDyn<'_>,
         presets: Vec<(String, OptValue)>,
         in_substitution: bool,
     ) -> (Vec<Node>, bool) {
@@ -342,8 +452,7 @@ impl Machine {
             None => (arg_block, Vec::new()),
         };
         if !opt_block.is_empty() {
-            let parsed =
-                self.parse_extension_options(doc, spec.options.unwrap_or(&[]), opt_block)?;
+            let parsed = self.parse_extension_options(doc, spec, opt_block)?;
             for (name, value) in parsed {
                 match options.iter_mut().find(|(n, _)| *n == name) {
                     Some(slot) => slot.1 = value,
@@ -358,7 +467,7 @@ impl Machine {
     fn parse_extension_options(
         &mut self,
         doc: &mut Document,
-        spec: &[(&str, Opt)],
+        spec: &Spec,
         lines: Vec<Line>,
     ) -> Result<Vec<(String, OptValue)>, MarkupError> {
         let count = lines.len() as isize;
@@ -403,7 +512,7 @@ impl Machine {
         }
         let mut options: Vec<(String, OptValue)> = Vec::new();
         for (name, value) in raw {
-            let Some(&(_, opt)) = spec.iter().find(|(n, _)| *n == name) else {
+            let Some(converter) = spec.converter(&name) else {
                 return Err(MarkupError(format!("unknown option: \"{name}\"")));
             };
             if options.iter().any(|(n, _)| *n == name) {
@@ -411,7 +520,7 @@ impl Machine {
                     "invalid option data: duplicate option \"{name}\""
                 )));
             }
-            match convert(opt, value.as_deref()) {
+            match converter.convert(value.as_deref()) {
                 Ok(v) => options.push((name, v)),
                 Err(detail) => {
                     return Err(MarkupError(format!(
@@ -446,6 +555,128 @@ impl Machine {
             At::Top(Some(lineno)),
         );
         (vec![error.into()], blank_finish)
+    }
+}
+
+/// An unknown directive kept as a generic `directive` element: its name
+/// and argument as attributes, its options as a field list, its content
+/// as a literal block.
+fn generic_directive(
+    _: &mut Machine,
+    _: &mut Document,
+    call: &mut Call,
+) -> Result<Vec<Node>, Failure> {
+    let mut node =
+        Element::new(Kind::Other("directive".into())).with_attr("name", call.name.clone());
+    node.span = call.span;
+    if let Some(argument) = call.arguments.first() {
+        node.attributes.set("argument", argument.clone());
+    }
+    if !call.options.is_empty() {
+        let mut list = Element::new(Kind::FieldList);
+        for (name, value) in &call.options {
+            let text = value.as_str().unwrap_or("").to_owned();
+            let mut body = Element::new(Kind::FieldBody);
+            if !text.is_empty() {
+                body.children.push(super::document::paragraph(&text).into());
+            }
+            list.children.push(
+                Element::new(Kind::Field)
+                    .with_child(
+                        Element::new(Kind::FieldName)
+                            .with_child(crate::nodes::Text::new(name.clone(), None)),
+                    )
+                    .with_child(body)
+                    .into(),
+            );
+        }
+        node.children.push(list.into());
+    }
+    if !call.content.is_empty() {
+        node.children.push(
+            fixed(
+                Kind::LiteralBlock,
+                &call.content_text(),
+                span_of(&call.content),
+            )
+            .into(),
+        );
+    }
+    Ok(vec![node.into()])
+}
+
+/// What a registered directive's context reads and does.
+pub(crate) struct DirectiveRun<'a> {
+    m: &'a mut Machine,
+    doc: &'a mut Document,
+    call: &'a mut Call,
+}
+
+impl DirectiveRun<'_> {
+    pub(crate) fn name(&self) -> &str {
+        &self.call.name
+    }
+
+    pub(crate) fn arguments(&self) -> &[String] {
+        &self.call.arguments
+    }
+
+    pub(crate) fn options(&self) -> Vec<(String, crate::extension::OptionValue)> {
+        self.call
+            .options
+            .iter()
+            .map(|(k, v)| (k.clone(), public_value(v)))
+            .collect()
+    }
+
+    pub(crate) fn content(&self) -> Vec<String> {
+        self.call.content.iter().map(|l| l.text.clone()).collect()
+    }
+
+    pub(crate) fn lineno(&self) -> usize {
+        self.call.lineno
+    }
+
+    pub(crate) fn block_text(&self) -> &str {
+        &self.call.block_text
+    }
+
+    pub(crate) fn span(&self) -> Option<crate::nodes::Span> {
+        self.call.span
+    }
+
+    pub(crate) fn in_substitution(&self) -> bool {
+        self.call.in_substitution
+    }
+
+    pub(crate) fn parse_content(&mut self, container: Element) -> Element {
+        standard::parse_content(self.m, self.doc, self.call, container)
+    }
+
+    pub(crate) fn parse_inline(&mut self, text: &str) -> (Vec<Node>, Vec<Element>) {
+        super::inline::inline_text(
+            self.doc,
+            text,
+            self.call.lineno,
+            &super::inline::Origin::default(),
+        )
+    }
+
+    pub(crate) fn message(&mut self, level: i64, text: &str) -> Element {
+        self.doc
+            .message(level, text, Vec::new(), At::Top(Some(self.call.lineno)))
+    }
+}
+
+/// An option value as the public type.
+pub(crate) fn public_value(v: &OptValue) -> crate::extension::OptionValue {
+    use crate::extension::OptionValue as V;
+    match v {
+        OptValue::None => V::Flag,
+        OptValue::Str(s) => V::Text(s.clone()),
+        OptValue::Int(n) => V::Int(*n),
+        OptValue::List(l) => V::List(l.clone()),
+        OptValue::IntList(l) => V::List(l.iter().map(i64::to_string).collect()),
     }
 }
 

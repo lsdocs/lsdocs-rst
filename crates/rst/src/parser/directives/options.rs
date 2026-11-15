@@ -29,6 +29,15 @@ pub(crate) enum Opt {
     Backlinks,
     /// The `figure` directive's `figwidth`.
     FigWidth,
+    /// One character or a character code.
+    SingleChar,
+    /// As `SingleChar`, or `tab` or `space`.
+    SingleCharOrWhitespace,
+    /// A table's `widths`: `auto`, or with `grid` also `grid`, or a list of
+    /// positive numbers.
+    Widths {
+        grid: bool,
+    },
 }
 
 /// A converted option value.
@@ -38,6 +47,7 @@ pub(crate) enum OptValue {
     Str(String),
     Int(i64),
     List(Vec<String>),
+    IntList(Vec<i64>),
 }
 
 impl OptValue {
@@ -59,6 +69,41 @@ impl OptValue {
 /// Python's `repr()` of an optional string.
 pub(crate) fn py_repr_opt(s: Option<&str>) -> String {
     s.map_or_else(|| "None".to_owned(), py_repr)
+}
+
+/// docutils' `unicode_code`.
+pub(crate) fn unicode_code(code: &str) -> Result<String, String> {
+    let range = "ValueError: chr() arg not in range(0x110000)";
+    let to_char = |n: u64| -> Result<String, String> {
+        u32::try_from(n)
+            .ok()
+            .and_then(char::from_u32)
+            .map(String::from)
+            .ok_or_else(|| range.to_owned())
+    };
+    if !code.is_empty() && code.chars().all(|c| c.is_ascii_digit()) {
+        return code
+            .parse::<u64>()
+            .map_err(|_| range.to_owned())
+            .and_then(to_char);
+    }
+    let lower = code.to_lowercase();
+    let hex = ["0x", "x", "\\x", "u+", "u", "\\u"]
+        .iter()
+        .find_map(|p| lower.strip_prefix(p))
+        .filter(|h| !h.is_empty() && h.chars().all(|c| c.is_ascii_hexdigit()))
+        .or_else(|| {
+            lower
+                .strip_prefix("&#x")
+                .and_then(|h| h.strip_suffix(';'))
+                .filter(|h| !h.is_empty() && h.chars().all(|c| c.is_ascii_hexdigit()))
+        });
+    match hex {
+        Some(h) => u64::from_str_radix(h, 16)
+            .map_err(|_| range.to_owned())
+            .and_then(to_char),
+        None => Ok(code.to_owned()),
+    }
 }
 
 const NONE_TYPE: &str =
@@ -325,6 +370,42 @@ pub(crate) fn convert(opt: Opt, argument: Option<&str>) -> Result<OptValue, Stri
                 OptValue::Str(v)
             }
         }
+        Opt::SingleChar | Opt::SingleCharOrWhitespace => {
+            let a = argument.unwrap_or("");
+            let c = match a {
+                "tab" if opt == Opt::SingleCharOrWhitespace => "	".to_owned(),
+                "space" if opt == Opt::SingleCharOrWhitespace => " ".to_owned(),
+                _ => unicode_code(a)?,
+            };
+            if c.chars().count() > 1 {
+                return Err(format!(
+                    "{} invalid; must be a single character or a Unicode code",
+                    py_repr(&c)
+                ));
+            }
+            OptValue::Str(c)
+        }
+        Opt::Widths { grid } => match argument {
+            Some("auto") => OptValue::Str("auto".to_owned()),
+            Some("grid") if grid => OptValue::Str("grid".to_owned()),
+            None => return Err("argument of type 'NoneType' is not iterable".to_owned()),
+            Some(a) => {
+                let entries: Vec<&str> = if a.contains(',') {
+                    a.split(',').collect()
+                } else {
+                    split_whitespace(a).collect()
+                };
+                let mut out = Vec::new();
+                for e in entries {
+                    let n = python_int(Some(e))?;
+                    if n < 1 {
+                        return Err("negative or zero value; must be positive".to_owned());
+                    }
+                    out.push(n);
+                }
+                OptValue::IntList(out)
+            }
+        },
         Opt::FigWidth => match argument {
             Some(a) if a.to_lowercase() == "image" => OptValue::Str("image".to_owned()),
             a => OptValue::Str(length_or_percentage_or_unitless(a, "px")?),

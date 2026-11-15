@@ -62,6 +62,9 @@ FRAGMENTS = [
     ".. contents::", ".. contents:: Toc\n   :depth: 1", ".. sectnum::", ".. target-notes::",
     ".. header:: h", ".. footer:: f", ".. rst-class:: c", ".. code-block:: c",
     "   :name: n", "   :class: k", "   :nosuch: v", "   :depth: x",
+    ".. table:: T", ".. table::\n   :widths: auto", ".. list-table::",
+    ".. list-table:: L\n   :header-rows: 1", ".. csv-table::", ".. csv-table:: C\n   :header: a, b",
+    "   a, b, c", "   \"q, r\", s", "   * - x\n     - y", "   :widths: 1 2", "   :stub-columns: 1",
 ]
 PREFIXES = ["", "", "", "", "  ", "    ", "   "]
 

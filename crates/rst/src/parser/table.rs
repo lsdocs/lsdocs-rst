@@ -102,6 +102,27 @@ impl TableLine {
     }
 }
 
+/// The `widths` option of the table directives.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum Widths {
+    /// Not given.
+    Default,
+    Auto,
+    Grid,
+    Given(Vec<i64>),
+}
+
+impl Widths {
+    /// The classes docutils gives a table for these widths.
+    pub(crate) fn classes(&self, table: &mut Element) {
+        match self {
+            Widths::Default => {}
+            Widths::Auto => table.attributes.push("classes", "colwidths-auto"),
+            Widths::Grid | Widths::Given(_) => table.attributes.push("classes", "colwidths-given"),
+        }
+    }
+}
+
 /// A problem with a table's markup, and the table line it is on.
 struct TableError {
     message: String,
@@ -117,14 +138,14 @@ fn table_error(message: impl Into<String>, offset: usize) -> TableError {
 
 /// A cell: extra rows and columns it spans, the line its text starts on
 /// (relative to the table), and its text.
-type Cell = (usize, usize, usize, Vec<Line>);
-type Row = Vec<Option<Cell>>;
+pub(crate) type Cell = (usize, usize, usize, Vec<Line>);
+pub(crate) type Row = Vec<Option<Cell>>;
 
 /// Column widths, head rows and body rows.
-struct TableData {
-    colspecs: Vec<usize>,
-    head: Vec<Row>,
-    body: Vec<Row>,
+pub(crate) struct TableData {
+    pub(crate) colspecs: Vec<usize>,
+    pub(crate) head: Vec<Row>,
+    pub(crate) body: Vec<Row>,
 }
 
 /// docutils' `StringList.get_2D_block`: lines `top..bottom`, columns
@@ -740,7 +761,7 @@ impl Machine {
             match parsed {
                 Ok(data) => {
                     let tableline = self.abs_line_number() as isize + 1 - block.len() as isize;
-                    nodes.push(self.build_table(doc, data, tableline));
+                    nodes.push(self.build_table(doc, data, tableline, 0, Widths::Default));
                 }
                 Err(e) => {
                     nodes.extend(self.malformed_table(doc, &block, &e.message, e.offset));
@@ -927,16 +948,28 @@ impl Machine {
     }
 
     /// The table element from parsed table data.
-    fn build_table(&mut self, doc: &mut Document, data: TableData, tableline: isize) -> Element {
+    /// The table element from parsed table data (docutils'
+    /// `build_table`), the first `stub_columns` columns marked as stubs.
+    pub(crate) fn build_table(
+        &mut self,
+        doc: &mut Document,
+        data: TableData,
+        tableline: isize,
+        mut stub_columns: usize,
+        widths: Widths,
+    ) -> Element {
+        let mut table = Element::new(Kind::Table);
+        widths.classes(&mut table);
         let mut tgroup = Element::new(Kind::Tgroup).with_attr("cols", data.colspecs.len() as i64);
         for width in &data.colspecs {
-            tgroup.children.push(
-                Element::new(Kind::Colspec)
-                    .with_attr("colwidth", *width as i64)
-                    .into(),
-            );
+            let mut colspec = Element::new(Kind::Colspec).with_attr("colwidth", *width as i64);
+            if stub_columns > 0 {
+                colspec.attributes.set("stub", true);
+                stub_columns -= 1;
+            }
+            tgroup.children.push(colspec.into());
         }
-        doc.open(Element::new(Kind::Table), false);
+        doc.open(table, false);
         doc.open(tgroup, true);
         if !data.head.is_empty() {
             doc.open(Element::new(Kind::Thead), true);

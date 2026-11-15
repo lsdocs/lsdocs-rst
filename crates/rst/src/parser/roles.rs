@@ -7,6 +7,7 @@ use super::document::{At, Document, ERROR, INFO, fixed};
 use super::inline::{Inliner, element};
 use crate::nodes::{Element, Kind, Node, Span, Text};
 use crate::util::{restore_backslashes, unescape};
+use std::sync::Arc;
 
 /// The canonical role for an English role name.
 fn canonical(name: &str) -> Option<&'static str> {
@@ -74,15 +75,47 @@ fn registered(canonical: &str) -> bool {
         || UNIMPLEMENTED.contains(&canonical)
 }
 
-/// A role: a standard one by canonical name, or a custom one (from the
-/// `role` directive) with the options it was made with.
+/// A role registered by the caller.
+#[derive(Clone)]
+pub(crate) struct UserRole(pub(crate) Arc<dyn crate::extension::Role>);
+
+impl std::fmt::Debug for UserRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("UserRole")
+    }
+}
+
+/// A role: a standard one by canonical name, a registered one, or a
+/// custom one (from the `role` directive) with the options it was made
+/// with.
 #[derive(Debug, Clone)]
 pub(crate) struct Role {
     /// The canonical name of the base role; empty for docutils'
-    /// `generic_custom_role` (an `inline` element).
+    /// `generic_custom_role` (an `inline` element) and registered roles.
     canonical: String,
     /// Options given by the `role` directive.
     options: Vec<(String, OptValue)>,
+    user: Option<UserRole>,
+}
+
+/// What a registered role's context reads.
+pub(crate) struct RoleRun<'a> {
+    pub(crate) name: &'a str,
+    /// The text, escapes as nulls.
+    pub(crate) text: &'a str,
+    pub(crate) rawsource: &'a str,
+    pub(crate) options: &'a [(String, OptValue)],
+    pub(crate) lineno: usize,
+    pub(crate) span: Option<Span>,
+}
+
+impl RoleRun<'_> {
+    pub(crate) fn options(&self) -> Vec<(String, crate::extension::OptionValue)> {
+        self.options
+            .iter()
+            .map(|(k, v)| (k.clone(), super::directives::public_value(v)))
+            .collect()
+    }
 }
 
 impl Role {
@@ -90,6 +123,7 @@ impl Role {
         Role {
             canonical: canonical.to_owned(),
             options: Vec::new(),
+            user: None,
         }
     }
 
@@ -98,13 +132,20 @@ impl Role {
         Self::standard("")
     }
 
-    /// The options a custom role based on this one accepts.
-    pub(crate) fn option_spec(&self) -> &'static [(&'static str, Opt)] {
-        match self.canonical.as_str() {
+    /// The spec of a custom role based on this one: its options (any, for
+    /// a registered role), no arguments or content.
+    pub(crate) fn spec(&self) -> super::directives::Spec {
+        let options: &'static [(&'static str, Opt)] = match self.canonical.as_str() {
             "code" => &[("language", Opt::Unchanged), ("class", Opt::Class)],
             "raw" => &[("format", Opt::Unchanged), ("class", Opt::Class)],
             _ => &[("class", Opt::Class)],
+        };
+        let mut spec = super::directives::Spec::new();
+        spec.options = Some(options);
+        if self.user.is_some() {
+            spec.extra = super::directives::Extra::Any;
         }
+        spec
     }
 
     /// A custom role on this base with `options` (docutils' `CustomRole`).
@@ -119,6 +160,7 @@ impl Role {
         Role {
             canonical: self.canonical.clone(),
             options: merged,
+            user: self.user.clone(),
         }
     }
 
@@ -155,6 +197,15 @@ pub(crate) fn lookup(
     let normname = name.to_lowercase();
     if let Some(role) = doc.roles.get(&normname) {
         return (Some(role.clone()), Vec::new());
+    }
+    if let Some(user) = doc.extensions.roles.get(&normname).cloned() {
+        let role = Role {
+            canonical: String::new(),
+            options: Vec::new(),
+            user: Some(UserRole(user)),
+        };
+        doc.roles.insert(normname, role.clone());
+        return (Some(role), Vec::new());
     }
     let mut messages = Vec::new();
     let canonical_name = if name.is_empty() {
@@ -228,6 +279,29 @@ fn apply(
         let prb = inliner.problematic(rawsource, &mut msg, span);
         (vec![prb.into()], vec![msg])
     };
+    if let Some(UserRole(user)) = &role.user {
+        let mut cx = crate::extension::RoleContext {
+            run: RoleRun {
+                name: role_name,
+                text,
+                rawsource,
+                options: &role.options,
+                lineno,
+                span,
+            },
+        };
+        return match user.run(&mut cx) {
+            Ok(nodes) => (nodes, Vec::new()),
+            Err(e) => {
+                let mut msg =
+                    inliner
+                        .doc
+                        .message(e.level, &e.message, Vec::new(), At::Top(Some(lineno)));
+                let prb = inliner.problematic(rawsource, &mut msg, span);
+                (vec![prb.into()], vec![msg])
+            }
+        };
+    }
     let mut node = if role.canonical.is_empty() {
         element(Kind::Inline, text, span)
     } else if let Some(kind) = generic(&role.canonical) {

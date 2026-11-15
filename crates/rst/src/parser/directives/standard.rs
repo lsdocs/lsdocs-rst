@@ -1,6 +1,6 @@
 //! docutils' standard directives (`docutils.parsers.rst.directives`).
 
-use super::options::{Opt, OptValue, class_option, py_repr};
+use super::options::{Opt, OptValue, class_option, py_repr, unicode_code};
 use super::{Call, Failure, Run, Spec, failure};
 use crate::nodes::{AttrValue, Element, Kind, Node, Text};
 use crate::parser::document::{At, Document, ERROR, INFO, LINE_INDENT, MsgNode, WARNING, fixed};
@@ -50,6 +50,9 @@ pub(super) const NAMES: &[&str] = &[
     "footer",
     "target-notes",
     "restructuredtext-test-directive",
+    "table",
+    "csv-table",
+    "list-table",
 ];
 
 const CLASS_NAME: &[(&str, Opt)] = &[("class", Opt::Class), ("name", Opt::Unchanged)];
@@ -315,6 +318,23 @@ pub(super) fn lookup(name: &str) -> Option<(Spec, Run)> {
             },
             target_notes,
         ),
+        "table" | "csv-table" | "list-table" => {
+            let (options, run): (&'static [(&'static str, Opt)], Run) = match name {
+                "table" => (super::tables::TABLE_OPTIONS, super::tables::table),
+                "csv-table" => (super::tables::CSV_OPTIONS, super::tables::csv_table),
+                _ => (super::tables::LIST_OPTIONS, super::tables::list_table),
+            };
+            (
+                Spec {
+                    optional: 1,
+                    final_whitespace: true,
+                    options: Some(options),
+                    has_content: true,
+                    ..Spec::new()
+                },
+                run,
+            )
+        }
         "restructuredtext-test-directive" => (
             Spec {
                 optional: 1,
@@ -369,14 +389,19 @@ fn inline(doc: &mut Document, call: &Call, text: &str) -> (Vec<Node>, Vec<Elemen
 }
 
 /// Parses the content into `node`.
-fn parse_content(m: &mut Machine, doc: &mut Document, call: &Call, node: Element) -> Element {
+pub(super) fn parse_content(
+    m: &mut Machine,
+    doc: &mut Document,
+    call: &Call,
+    node: Element,
+) -> Element {
     doc.open(node, false);
     m.nested_parse(doc, call.content.clone(), call.content_offset);
     doc.close().unwrap()
 }
 
 /// The nodes parsed from the content, in an anonymous container.
-fn parse_into_container(m: &mut Machine, doc: &mut Document, call: &Call) -> Vec<Node> {
+pub(super) fn parse_into_container(m: &mut Machine, doc: &mut Document, call: &Call) -> Vec<Node> {
     parse_content(m, doc, call, Element::new(Kind::Other("Element".into()))).children
 }
 
@@ -396,6 +421,7 @@ fn detail(value: &OptValue) -> AttrValue {
         OptValue::Str(s) => AttrValue::Str(s.clone()),
         OptValue::Int(n) => AttrValue::Int(*n),
         OptValue::List(l) => AttrValue::List(l.clone()),
+        OptValue::IntList(l) => AttrValue::List(l.iter().map(i64::to_string).collect()),
     }
 }
 
@@ -882,41 +908,6 @@ fn replace(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<N
     Ok(messages)
 }
 
-/// docutils' `unicode_code`.
-fn unicode_code(code: &str) -> Result<String, String> {
-    let range = "ValueError: chr() arg not in range(0x110000)";
-    let to_char = |n: u64| -> Result<String, String> {
-        u32::try_from(n)
-            .ok()
-            .and_then(char::from_u32)
-            .map(String::from)
-            .ok_or_else(|| range.to_owned())
-    };
-    if !code.is_empty() && code.chars().all(|c| c.is_ascii_digit()) {
-        return code
-            .parse::<u64>()
-            .map_err(|_| range.to_owned())
-            .and_then(to_char);
-    }
-    let lower = code.to_lowercase();
-    let hex = ["0x", "x", "\\x", "u+", "u", "\\u"]
-        .iter()
-        .find_map(|p| lower.strip_prefix(p))
-        .filter(|h| !h.is_empty() && h.chars().all(|c| c.is_ascii_hexdigit()))
-        .or_else(|| {
-            lower
-                .strip_prefix("&#x")
-                .and_then(|h| h.strip_suffix(';'))
-                .filter(|h| !h.is_empty() && h.chars().all(|c| c.is_ascii_hexdigit()))
-        });
-    match hex {
-        Some(h) => u64::from_str_radix(h, 16)
-            .map_err(|_| range.to_owned())
-            .and_then(to_char),
-        None => Ok(code.to_owned()),
-    }
-}
-
 fn unicode(_: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
     not_in_substitution(call)?;
     let top = doc.top();
@@ -1026,10 +1017,7 @@ fn role(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node
         }
         None => crate::parser::roles::Role::generic_custom(),
     };
-    let spec = super::Spec {
-        options: Some(base.option_spec()),
-        ..super::Spec::new()
-    };
+    let spec = base.spec();
     let parsed = m.parse_directive_block(
         doc,
         call.content[1..].to_vec(),
@@ -1413,6 +1401,10 @@ fn test_directive(
                 OptValue::List(l) => format!(
                     "[{}]",
                     l.iter().map(|s| py_repr(s)).collect::<Vec<_>>().join(", ")
+                ),
+                OptValue::IntList(l) => format!(
+                    "[{}]",
+                    l.iter().map(i64::to_string).collect::<Vec<_>>().join(", ")
                 ),
             };
             format!("{}: {value}", py_repr(k))
