@@ -36,8 +36,9 @@
 //! - **Diagnostics:** docutils' warnings and errors become warnings, its
 //!   severe errors errors; info messages are dropped.
 //! - **Files:** `include`, `raw` and `csv-table` read files from the
-//!   source directory (option `file_access`, on by default). Results are
-//!   not cached while it is on, since they depend on other files.
+//!   source directory (option `file_access`, on by default). The files
+//!   read (or looked for) are the result's dependencies, so a cached
+//!   result is reused only while they are unchanged.
 //!
 //! Options:
 //!
@@ -47,10 +48,11 @@
 
 mod convert;
 
+use std::sync::{Arc, Mutex, PoisonError};
+
 use lsdocs_plugin_sdk::doctree::Value;
 use lsdocs_plugin_sdk::protocol::{
-    ArgumentSyntax, ContentSyntax, DirectiveSyntax, InitializeParams, OptionSyntax, ParseParams,
-    ParseResult, Syntax,
+    ArgumentSyntax, ContentSyntax, DirectiveSyntax, OptionSyntax, ParseParams, ParseResult, Syntax,
 };
 use lsdocs_plugin_sdk::{Context, Parser, Plugin, PluginResult};
 use lsdocs_rst::nodes::{Element, Kind, Node, Text};
@@ -65,7 +67,7 @@ pub use convert::convert;
 pub fn plugin() -> Plugin {
     Plugin::new("parser-rst", env!("CARGO_PKG_VERSION"))
         .parser(Rst)
-        .cache_key(|init: &InitializeParams| (!file_access(&init.options)).then(String::new))
+        .cacheable()
 }
 
 /// The reStructuredText parser.
@@ -90,16 +92,12 @@ impl Parser for Rst {
             .source_dir
             .clone()
             .filter(|_| file_access(ctx.options()));
-        let (document, diagnostics) = parse(
+        Ok(parse_with_dependencies(
             &params.source,
             &params.text,
             source_dir.as_deref(),
             &params.syntax,
-        );
-        Ok(ParseResult {
-            document,
-            diagnostics,
-        })
+        ))
     }
 }
 
@@ -107,6 +105,17 @@ impl Parser for Rst {
 /// the document title, unknown directives kept, and the directives and
 /// roles of `syntax`; with `source_dir`, files are read from it.
 pub fn rst_parser(source: &str, source_dir: Option<&str>, syntax: &Syntax) -> lsdocs_rst::Parser {
+    rst_parser_recording(source, source_dir, syntax, None)
+}
+
+/// [`rst_parser`], noting every file directives read (or look for) in
+/// `read`.
+fn rst_parser_recording(
+    source: &str,
+    source_dir: Option<&str>,
+    syntax: &Syntax,
+    read: Option<Arc<Mutex<Vec<String>>>>,
+) -> lsdocs_rst::Parser {
     let mut parser = lsdocs_rst::Parser::new()
         .source(source)
         .transforms(true)
@@ -119,9 +128,57 @@ pub fn rst_parser(source: &str, source_dir: Option<&str>, syntax: &Syntax) -> ls
         parser = parser.role(&role.name, DeclaredRole(role.name.clone()));
     }
     if let Some(dir) = source_dir {
-        parser = parser.file_loader(lsdocs_rst::DirectoryLoader::new(dir));
+        parser = match read {
+            Some(read) => parser.file_loader(Recording {
+                inner: lsdocs_rst::DirectoryLoader::new(dir),
+                dir: dir.to_owned(),
+                read,
+            }),
+            None => parser.file_loader(lsdocs_rst::DirectoryLoader::new(dir)),
+        };
     }
     parser
+}
+
+/// A loader noting the files it is asked for.
+struct Recording {
+    inner: lsdocs_rst::DirectoryLoader,
+    dir: String,
+    read: Arc<Mutex<Vec<String>>>,
+}
+
+impl lsdocs_rst::FileLoader for Recording {
+    fn read_file(&self, path: &str) -> std::io::Result<Vec<u8>> {
+        let full = std::path::Path::new(&self.dir).join(path);
+        self.read
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(full.to_string_lossy().replace('\\', "/"));
+        self.inner.read_file(path)
+    }
+}
+
+/// Parses as [`parse`] does, with the files directives read as the
+/// result's dependencies.
+pub fn parse_with_dependencies(
+    source: &str,
+    text: &str,
+    source_dir: Option<&str>,
+    syntax: &Syntax,
+) -> ParseResult {
+    let read = Arc::new(Mutex::new(Vec::new()));
+    let (tree, messages) = rst_parser_recording(source, source_dir, syntax, Some(read.clone()))
+        .parse_with_messages(text);
+    let (document, diagnostics) = convert(source, text, &tree, &messages);
+    let mut dependencies =
+        std::mem::take(&mut *read.lock().unwrap_or_else(PoisonError::into_inner));
+    dependencies.sort();
+    dependencies.dedup();
+    ParseResult {
+        document,
+        diagnostics,
+        dependencies,
+    }
 }
 
 /// Parses reStructuredText into a document, plus the problems docutils
