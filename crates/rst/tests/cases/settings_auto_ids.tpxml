@@ -1,0 +1,38 @@
+<document source="test data">
+    <paragraph>
+        Text 
+        <footnote_reference auto="1" ids="footnote-reference-1" refid="footnote-1">
+            1
+         and 
+        <footnote_reference auto="*" ids="footnote-reference-2" refid="footnote-2">
+            *
+        .
+    <footnote auto="1" backrefs="footnote-reference-1" ids="footnote-1" names="1">
+        <label>
+            1
+        <paragraph>
+            One.
+    <footnote auto="*" backrefs="footnote-reference-2" ids="footnote-2">
+        <label>
+            *
+        <paragraph>
+            Two.
+    <section dupnames="a" ids="a">
+        <title>
+            A
+        <enumerated_list enumtype="upperalpha" prefix="" start="2" suffix=".">
+            <list_item>
+        <system_message level="1" line="9" source="test data" type="INFO">
+            <paragraph>
+                Enumerated list start value not ordinal-1: "B" (ordinal 2)
+    <section dupnames="a" ids="a-1">
+        <title>
+            A
+        <system_message backrefs="a-1" level="1" line="12" source="test data" type="INFO">
+            <paragraph>
+                Duplicate implicit target name: "a".
+        <enumerated_list enumtype="upperalpha" prefix="" start="3" suffix=".">
+            <list_item>
+        <system_message level="1" line="14" source="test data" type="INFO">
+            <paragraph>
+                Enumerated list start value not ordinal-1: "C" (ordinal 3)

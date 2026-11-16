@@ -1,0 +1,26 @@
+<document source="test data">
+    <topic classes="contents" ids="contents" names="contents">
+        <title>
+            Contents
+        <pending>
+            .. internal attributes:
+                 .transform: docutils.transforms.parts.Contents
+                 .details:
+    <topic classes="contents" ids="second" names="second">
+        <title>
+            Second
+        <pending>
+            .. internal attributes:
+                 .transform: docutils.transforms.parts.Contents
+                 .details:
+                   backlinks: 'entry'
+    <section ids="one" names="one">
+        <title>
+            One
+        <paragraph>
+            Text.
+    <section ids="two" names="two">
+        <title>
+            Two
+        <paragraph>
+            Text.

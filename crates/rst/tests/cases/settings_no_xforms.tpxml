@@ -1,0 +1,37 @@
+<document source="test data" title="Set title">
+    <field_list>
+        <field>
+            <field_name>
+                Author
+            <field_body>
+                <paragraph>
+                    Me
+        <field>
+            <field_name>
+                Version
+            <field_body>
+                <paragraph>
+                    1
+    <topic classes="contents" ids="contents" names="contents">
+        <title>
+            Contents
+        <bullet_list>
+            <list_item>
+                <paragraph>
+                    <reference ids="toc-entry-1" refid="title">
+                        Title
+                <bullet_list>
+                    <list_item>
+                        <paragraph>
+                            <reference ids="toc-entry-2" refid="sub">
+                                Sub
+    <section ids="title" names="title">
+        <title refid="contents">
+            Title
+        <paragraph>
+            Text.
+        <section ids="sub" names="sub">
+            <title refid="contents">
+                Sub
+            <paragraph>
+                More.

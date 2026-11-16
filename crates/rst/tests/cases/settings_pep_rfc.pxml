@@ -1,0 +1,54 @@
+<document source="test data">
+    <paragraph>
+        See 
+        <reference refuri="https://example.org/peps/pep8.html">
+            PEP 8
+        , 
+        <reference refuri="https://example.org/peps/pep287.html">
+            PEP
+            287
+        , 
+        <reference refuri="https://example.org/peps/pep12.html">
+            pep-0012
+         and 
+        <reference refuri="https://example.org/peps/pep12.html">
+            pep-0012.txt
+        , and 
+        <reference refuri="https://example.org/peps/pep1.html">
+            pep-12txt
+        .
+    <paragraph>
+        Then 
+        <reference refuri="https://example.org/rfc/rfc2822.html">
+            RFC 2822
+        , 
+        <reference refuri="https://example.org/rfc/rfc822.html">
+            RFC-822
+        , 
+        <reference refuri="https://example.org/rfc/rfc2616.html">
+            RFC2616
+         and 
+        <reference refuri="https://example.org/rfc/rfc1.html">
+            RFC  1
+        .
+    <paragraph>
+        Not these: xPEP 8, PEP8, PEPs 8, pep-x, RFC-x, RFC 12a.
+    <paragraph>
+        Inside (
+        <reference refuri="https://example.org/peps/pep8.html">
+            PEP 8
+        ) and "
+        <reference refuri="https://example.org/rfc/rfc1.html">
+            RFC 1
+        ", and 
+        <reference refuri="https://example.org/PEP">
+            https://example.org/PEP
+         8 too.
+    <paragraph>
+        Roles: 
+        <reference refuri="https://example.org/peps/pep20.html">
+            PEP 20
+         and 
+        <reference refuri="https://example.org/rfc/rfc2119.html#section-2">
+            RFC 2119
+        .

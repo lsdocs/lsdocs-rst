@@ -1,0 +1,35 @@
+<document source="test data">
+    <topic classes="contents" ids="contents" names="contents">
+        <title>
+            Contents
+        <bullet_list>
+            <list_item>
+                <paragraph>
+                    <reference ids="toc-entry-1" refid="one">
+                        One
+            <list_item>
+                <paragraph>
+                    <reference ids="toc-entry-2" refid="two">
+                        Two
+    <topic classes="contents" ids="second" names="second">
+        <title>
+            Second
+        <bullet_list>
+            <list_item>
+                <paragraph>
+                    <reference ids="toc-entry-3" refid="one">
+                        One
+            <list_item>
+                <paragraph>
+                    <reference ids="toc-entry-4" refid="two">
+                        Two
+    <section ids="one" names="one">
+        <title refid="toc-entry-3">
+            One
+        <paragraph>
+            Text.
+    <section ids="two" names="two">
+        <title refid="toc-entry-4">
+            Two
+        <paragraph>
+            Text.

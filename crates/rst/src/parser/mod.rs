@@ -27,11 +27,12 @@ pub(crate) use roles::RoleRun;
 
 use crate::extension::{Directive, Role};
 use crate::files::FileLoader;
-use crate::lines::lines;
+use crate::lines::lines_with;
 use crate::nodes::{Element, Kind, Span};
+use crate::settings::Settings;
 
 /// Directives and roles the caller added, and settings for them.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct Extensions {
     /// By lower-case name.
     pub(crate) directives: HashMap<String, Arc<dyn Directive>>,
@@ -43,26 +44,9 @@ pub(crate) struct Extensions {
     pub(crate) transforms: bool,
     /// Reads files for `include` and the `:file:` options.
     pub(crate) loader: Option<Arc<dyn FileLoader>>,
-    /// Promote a lone top-level section to the document title (docutils'
-    /// `doctitle_xform`).
-    pub(crate) doctitle: bool,
+    /// The docutils settings.
+    pub(crate) settings: Settings,
 }
-
-impl Default for Extensions {
-    fn default() -> Self {
-        Self {
-            directives: HashMap::new(),
-            roles: HashMap::new(),
-            keep_unknown: false,
-            transforms: false,
-            loader: None,
-            doctitle: true,
-        }
-    }
-}
-
-/// The longest line docutils parses (its `line_length_limit` setting).
-pub(crate) const LINE_LENGTH_LIMIT: usize = 10_000;
 
 /// Parses reStructuredText. Settings such as the source name are set on the
 /// parser; [`crate::parse`] uses the defaults.
@@ -85,6 +69,7 @@ impl std::fmt::Debug for Parser {
             .field("keep_unknown_directives", &self.extensions.keep_unknown)
             .field("transforms", &self.extensions.transforms)
             .field("file_loader", &self.extensions.loader.is_some())
+            .field("settings", &self.extensions.settings)
             .finish()
     }
 }
@@ -153,12 +138,24 @@ impl Parser {
         self
     }
 
+    /// Uses `settings`, docutils' settings, instead of the defaults. The
+    /// shorthands below change one setting each.
+    pub fn settings(mut self, settings: Settings) -> Self {
+        Arc::make_mut(&mut self.extensions).settings = settings;
+        self
+    }
+
+    /// The settings in use.
+    pub fn current_settings(&self) -> &Settings {
+        &self.extensions.settings
+    }
+
     /// With `doctitle` (the default), the transforms make a lone
     /// top-level section the document's title (and a lone subsection its
-    /// subtitle), as docutils' `doctitle_xform` setting does. Without, the
-    /// section stays, as in Sphinx.
+    /// subtitle): [`Settings::doctitle_xform`]. Without, the section
+    /// stays, as in Sphinx.
     pub fn doctitle(mut self, doctitle: bool) -> Self {
-        Arc::make_mut(&mut self.extensions).doctitle = doctitle;
+        Arc::make_mut(&mut self.extensions).settings.doctitle_xform = doctitle;
         self
     }
 
@@ -177,13 +174,14 @@ impl Parser {
         if let Some(source) = &self.source {
             root.attributes.set("source", source.as_str());
         }
-        let lines = lines(text);
+        let settings = &self.extensions.settings;
+        let lines = lines_with(text, settings.tab_width, None, None);
         let mut doc = document::Document::new(root, self.source.clone());
         doc.extensions = self.extensions.clone();
         // docutils refuses to parse input with very long lines.
         if let Some(i) = lines
             .iter()
-            .position(|l| l.text.chars().count() > LINE_LENGTH_LIMIT)
+            .position(|l| l.text.chars().count() > settings.line_length_limit)
         {
             let msg = doc.message(
                 document::ERROR,

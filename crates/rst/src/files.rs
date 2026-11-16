@@ -5,6 +5,22 @@
 //! [`FileLoader`]; without one, these directives behave as docutils' do
 //! with `file_insertion_enabled` off.
 //!
+//! A loader is anything implementing [`FileLoader`], closures included;
+//! [`DirectoryLoader`] reads below one directory:
+//!
+//! ```
+//! use lsdocs_rst::Parser;
+//!
+//! let loader = |path: &str| -> std::io::Result<Vec<u8>> {
+//!     match path {
+//!         "part.txt" => Ok(b"Included *text*.\n".to_vec()),
+//!         _ => Err(std::io::ErrorKind::NotFound.into()),
+//!     }
+//! };
+//! let doc = Parser::new().file_loader(loader).parse(".. include:: part.txt\n");
+//! assert_eq!(doc.astext(), "Included text.");
+//! ```
+//!
 //! [`Parser`]: crate::Parser
 
 use std::io;

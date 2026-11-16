@@ -12,7 +12,7 @@
 
 use super::document::{At, Document, MsgNode, NoteList, RAW, WARNING};
 use super::roles;
-use crate::lines::Line;
+use crate::lines::{Line, is_python_whitespace};
 use crate::nodes::{Element, Kind, Node, Span, Text};
 use crate::patterns::{is_email, simplename_ends};
 use crate::tables;
@@ -430,6 +430,80 @@ fn find_uri(s: &[char]) -> Option<(usize, usize, Option<usize>)> {
             return None;
         }
         uri_at(s, i).map(|(end, scheme)| (i, end, scheme))
+    })
+}
+
+/// The number made of the digits `s[a..b]`, if it fits.
+fn number(s: &[char], a: usize, b: usize) -> Option<i64> {
+    text_of(s, a, b).parse().ok()
+}
+
+/// The end of the run of digits (Python's `\d`, ASCII only here) at `i`.
+fn digits_end(s: &[char], i: usize) -> usize {
+    i + s[i.min(s.len())..]
+        .iter()
+        .take_while(|c| c.is_ascii_digit())
+        .count()
+}
+
+/// docutils' `pep` pattern searched in `s`: start, end and PEP number.
+/// `pep-(\d+)(.txt)?` or `PEP\s+(\d+)`, between inline markup
+/// boundaries; the regex backtracks, so `(.txt)?` may take a digit.
+fn find_pep(s: &[char]) -> Option<(usize, usize, i64)> {
+    let at = |i: usize, word: &str| {
+        word.chars()
+            .enumerate()
+            .all(|(k, c)| s.get(i + k) == Some(&c))
+    };
+    (0..s.len()).find_map(|i| {
+        if !start_ok(s, i) {
+            return None;
+        }
+        if at(i, "pep-") {
+            let d = i + 4;
+            let end = digits_end(s, d);
+            for e in (d + 1..=end).rev() {
+                // `(.txt)?`: any character but a line break, then `txt`.
+                if s.get(e).is_some_and(|&c| c != '\n') && at(e + 1, "txt") && end_ok(s, e + 4) {
+                    return number(s, d, e).map(|n| (i, e + 4, n));
+                }
+                if end_ok(s, e) {
+                    return number(s, d, e).map(|n| (i, e, n));
+                }
+            }
+        } else if at(i, "PEP") {
+            let spaces = s[i + 3..].iter().take_while(|&&c| is_space(c)).count();
+            let d = i + 3 + spaces;
+            let end = digits_end(s, d);
+            if spaces > 0 && end > d && end_ok(s, end) {
+                return number(s, d, end).map(|n| (i, end, n));
+            }
+        }
+        None
+    })
+}
+
+/// docutils' `rfc` pattern searched in `s`: start, end and RFC number.
+/// `RFC(-|\s+)?(\d+)` between inline markup boundaries.
+fn find_rfc(s: &[char]) -> Option<(usize, usize, i64)> {
+    (0..s.len()).find_map(|i| {
+        if !start_ok(s, i) || s.get(i..i + 3) != Some(&['R', 'F', 'C'][..]) {
+            return None;
+        }
+        let after = i + 3;
+        let separator = if s.get(after) == Some(&'-') {
+            1
+        } else {
+            s[after..].iter().take_while(|&&c| is_space(c)).count()
+        };
+        // With the separator, then without it.
+        for d in [after + separator, after] {
+            let end = digits_end(s, d);
+            if end > d && end_ok(s, end) {
+                return number(s, d, end).map(|n| (i, end, n));
+            }
+        }
+        None
     })
 }
 
@@ -932,8 +1006,14 @@ impl Inliner<'_> {
             }
             r
         };
+        let mut before = m.group.0;
+        if !citation && self.doc.extensions.settings.trim_footnote_reference_space {
+            while before > 0 && is_python_whitespace(s[before - 1]) {
+                before -= 1;
+            }
+        }
         Found {
-            before: m.group.0,
+            before,
             nodes: vec![node.into()],
             after: m.group.1,
             messages: Vec::new(),
@@ -986,16 +1066,41 @@ impl Inliner<'_> {
                 if scheme.is_none() {
                     refuri = format!("mailto:{refuri}");
                 }
-                let mut r = element(Kind::Reference, &text, self.span(base, a, b));
-                r.attributes.set("refuri", refuri);
-                let mut out = self.implicit_inline(&s[..a], base);
-                out.push(r.into());
-                out.extend(self.implicit_inline(&s[b..], base + b));
-                return out;
+                return self.implicit_reference(s, base, (a, b), refuri);
             }
+        }
+        let settings = &self.doc.extensions.settings;
+        if settings.pep_references
+            && let Some((a, b, number)) = find_pep(s)
+        {
+            let refuri = settings.pep_url(number);
+            return self.implicit_reference(s, base, (a, b), refuri);
+        }
+        if settings.rfc_references
+            && let Some((a, b, number)) = find_rfc(s)
+        {
+            let refuri = settings.rfc_url(number);
+            return self.implicit_reference(s, base, (a, b), refuri);
         }
         let span = self.span(base, 0, s.len());
         vec![Text::new(s.iter().collect::<String>(), span).into()]
+    }
+
+    /// A reference to `refuri` for `s[a..b]`, with the text around it
+    /// searched again.
+    fn implicit_reference(
+        &mut self,
+        s: &[char],
+        base: usize,
+        (a, b): (usize, usize),
+        refuri: String,
+    ) -> Vec<Node> {
+        let mut r = element(Kind::Reference, &text_of(s, a, b), self.span(base, a, b));
+        r.attributes.set("refuri", refuri);
+        let mut out = self.implicit_inline(&s[..a], base);
+        out.push(r.into());
+        out.extend(self.implicit_inline(&s[b..], base + b));
+        out
     }
 }
 

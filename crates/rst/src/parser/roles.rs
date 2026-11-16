@@ -3,7 +3,7 @@
 //! made with the `role` directive.
 
 use super::directives::options::{Opt, OptValue, python_int};
-use super::document::{At, Document, ERROR, INFO, fixed};
+use super::document::{At, Document, ERROR, INFO, WARNING, fixed};
 use super::inline::{Inliner, element};
 use crate::nodes::{Element, Kind, Node, Span, Text};
 use crate::util::{restore_backslashes, unescape};
@@ -347,7 +347,7 @@ fn apply(
                 };
                 let mut r = element(Kind::Reference, &format!("PEP {text}"), span);
                 r.attributes
-                    .set("refuri", format!("https://peps.python.org/pep-{n:04}"));
+                    .set("refuri", inliner.doc.extensions.settings.pep_url(n));
                 r
             }
             "rfc-reference" => {
@@ -366,7 +366,7 @@ fn apply(
                         ),
                     );
                 };
-                let mut uri = format!("https://tools.ietf.org/html/rfc{n}.html");
+                let mut uri = inliner.doc.extensions.settings.rfc_url(n);
                 if let Some(section) = section {
                     uri.push('#');
                     uri.push_str(&section);
@@ -376,6 +376,16 @@ fn apply(
                 r
             }
             "raw" => {
+                if !inliner.doc.extensions.settings.raw_enabled {
+                    let mut msg = inliner.doc.message(
+                        WARNING,
+                        "raw (and derived) roles disabled",
+                        Vec::new(),
+                        At::Top(None),
+                    );
+                    let prb = inliner.problematic(rawsource, &mut msg, span);
+                    return (vec![prb.into()], vec![msg]);
+                }
                 if role.option("format").is_none() {
                     return error(
                         inliner,

@@ -894,7 +894,7 @@ fn figure(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<No
 fn raw(_: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
     let name = call.name.clone();
     let (file, url) = (call.has("file"), call.has("url"));
-    if doc.extensions.loader.is_none() && (file || url) {
+    if !doc.extensions.settings.raw_enabled || (doc.extensions.loader.is_none() && (file || url)) {
         return Err(failure(WARNING, format!("\"{name}\" directive disabled.")));
     }
     let format = split_whitespace(&call.arguments[0].to_lowercase())

@@ -1,0 +1,15 @@
+<document source="test data">
+    <paragraph>
+        Paragraph.
+    <literal_block xml:space="preserve">
+        one
+            two
+    <bullet_list bullet="-">
+        <list_item>
+            <paragraph>
+                item
+            <block_quote>
+                <paragraph>
+                    quoted text
+    <paragraph>
+        a   b

@@ -1,0 +1,25 @@
+<document source="test data">
+    <section ids="doc" names="doc">
+        <title>
+            Doc
+        <subtitle ids="sub" names="sub">
+            Sub
+        <paragraph>
+            Intro.
+    <section ids="part" names="part">
+        <title>
+            Part
+        <subtitle ids="part-sub" names="part\ sub">
+            Part sub
+        <paragraph>
+            Text.
+    <section ids="other" names="other">
+        <title>
+            Other
+        <paragraph>
+            Text.
+        <section ids="child" names="child">
+            <title>
+                Child
+            <paragraph>
+                More.

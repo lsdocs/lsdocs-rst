@@ -197,9 +197,11 @@ pub(crate) fn apply(doc: &mut Document, root: &mut Element) {
         queue.push((priority, i, Some(key)));
     }
     let base = queue.len();
-    for (i, priority) in [220, 260, 320, 340, 440, 460, 620, 640, 660, 830, 850]
-        .into_iter()
-        .enumerate()
+    for (i, priority) in [
+        220, 260, 320, 340, 350, 440, 460, 620, 640, 660, 740, 830, 850,
+    ]
+    .into_iter()
+    .enumerate()
     {
         queue.push((priority, base + i, None));
     }
@@ -215,11 +217,13 @@ pub(crate) fn apply(doc: &mut Document, root: &mut Element) {
             (260, None) => propagate_targets(doc, root),
             (320, None) => frontmatter::doc_title(doc, root),
             (340, None) => frontmatter::doc_info(doc, root),
+            (350, None) => frontmatter::section_subtitles(doc, root),
             (440, None) => anonymous_hyperlinks(doc, root),
             (460, None) => indirect_hyperlinks(doc, root),
             (620, None) => footnotes(doc, root),
             (640, None) => external_targets(doc, root),
             (660, None) => internal_targets(doc, root),
+            (740, None) => strip_comments(doc, root),
             (830, None) => transitions(doc, root),
             (850, None) => dangling_references(doc, root),
             _ => {}
@@ -228,6 +232,22 @@ pub(crate) fn apply(doc: &mut Document, root: &mut Element) {
 }
 
 // -- misc ---------------------------------------------------------------------
+
+/// Removes comments, with `strip_comments` (docutils' `StripComments`).
+fn strip_comments(doc: &mut Document, root: &mut Element) {
+    fn strip(e: &mut Element) {
+        e.children
+            .retain(|c| !matches!(c, Node::Element(c) if c.kind == Kind::Comment));
+        for child in &mut e.children {
+            if let Node::Element(c) = child {
+                strip(c);
+            }
+        }
+    }
+    if doc.extensions.settings.strip_comments {
+        strip(root);
+    }
+}
 
 fn is_invisible(kind: &Kind) -> bool {
     matches!(

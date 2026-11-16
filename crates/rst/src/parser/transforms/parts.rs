@@ -25,7 +25,7 @@ fn detail_str(e: &Element, name: &str) -> String {
 // -- sectnum ------------------------------------------------------------------
 
 /// Numbers the sections (docutils' `parts.SectNum`).
-pub(super) fn sectnum(_doc: &mut Document, root: &mut Element, key: Key) {
+pub(super) fn sectnum(doc: &mut Document, root: &mut Element, key: Key) {
     let Some(pending) = get(root, key).cloned() else {
         return;
     };
@@ -36,7 +36,10 @@ pub(super) fn sectnum(_doc: &mut Document, root: &mut Element, key: Key) {
         suffix: detail_str(&pending, "suffix"),
     };
     remove(root, key);
-    numbering.number(root, &[], 0);
+    // Without `sectnum_xform`, docutils leaves the numbering to writers.
+    if doc.extensions.settings.sectnum_xform {
+        numbering.number(root, &[], 0);
+    }
 }
 
 struct Numbering {
@@ -105,7 +108,7 @@ pub(super) fn contents(doc: &mut Document, root: &mut Element, key: Key) {
         }
     }
     let backlinks = match pending.attributes.get(".details.backlinks") {
-        None => Some("entry".to_owned()),
+        None => Some(doc.extensions.settings.toc_backlinks.as_str().to_owned()),
         Some(AttrValue::Str(s)) => Some(s.clone()),
         Some(_) => None,
     };

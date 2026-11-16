@@ -8,9 +8,20 @@ license.workspace = true
 publish.workspace = true
 keywords = ["restructuredtext", "rst", "docutils", "parser"]
 categories = ["parser-implementations", "text-processing"]
+readme = "README.md"
 
 [lints]
 workspace = true
 
 [dependencies]
+serde = { workspace = true, optional = true }
 unicode-normalization.workspace = true
+
+[features]
+# Serialize and deserialize settings and document trees.
+serde = ["dep:serde"]
+
+[dev-dependencies]
+# The tests use the serde feature (settings files of conformance cases).
+lsdocs-rst = { path = ".", features = ["serde"] }
+serde_json.workspace = true

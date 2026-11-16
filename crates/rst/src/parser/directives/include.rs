@@ -10,9 +10,8 @@ use super::options::OptValue;
 use super::standard::{add_name, code_block, set_classes};
 use super::{Call, Failure, failure};
 use crate::files::{adapt_path, decode, os_error};
-use crate::lines::{Line, LineOrigin, TAB_WIDTH, lines_with, split_lines};
+use crate::lines::{Line, LineOrigin, lines_with, split_lines};
 use crate::nodes::{Kind, Node, Span, Text};
-use crate::parser::LINE_LENGTH_LIMIT;
 use crate::parser::document::{Document, ERROR, IncludeClip, SEVERE, WARNING, fixed};
 use crate::parser::machine::Machine;
 
@@ -129,7 +128,7 @@ pub(super) fn include(
             format!("The \"parser\" option of the \"{name}\" directive is not supported."),
         ));
     }
-    let tab_width = int(call, "tab-width").unwrap_or(TAB_WIDTH as i64);
+    let tab_width = int(call, "tab-width").unwrap_or(doc.extensions.settings.tab_width as i64);
     let clip: IncludeClip = (
         int(call, "start-line"),
         int(call, "end-line"),
@@ -267,7 +266,7 @@ fn insert(
         Some(span),
     );
     for (i, line) in lines.iter().enumerate() {
-        if line.text.chars().count() > LINE_LENGTH_LIMIT {
+        if line.text.chars().count() > doc.extensions.settings.line_length_limit {
             let line_no = i as i64 + 1 + clip.0.unwrap_or(0);
             return Err(failure(
                 WARNING,

@@ -5,12 +5,25 @@
 //! directive produces and prints exactly like docutils' pseudo-XML. Element
 //! kinds are the docutils node class names; [`Kind::Other`] holds kinds
 //! this crate does not define, such as those added by extensions.
+//!
+//! With the `serde` feature, the tree serializes as plain data (JSON,
+//! MessagePack, ...):
+//!
+//! - an element is a map with `kind` (the tag name), `attributes` (a map;
+//!   left out when empty), `children` (a list; left out when empty) and
+//!   `span` (`{"start": .., "end": ..}`; left out when unknown);
+//! - text is a map with `text` and `span`;
+//! - an attribute value is a string, a list of strings, an integer, a
+//!   boolean or null.
+//!
+//! The same form deserializes back into the tree.
 
 use std::collections::BTreeMap;
 use std::fmt;
 
 /// A byte range of the parsed text: `start` inclusive, `end` exclusive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Span {
     /// Offset of the first byte.
     pub start: usize,
@@ -267,8 +280,29 @@ impl fmt::Display for Kind {
     }
 }
 
+/// A kind serializes as its tag name.
+#[cfg(feature = "serde")]
+impl serde::Serialize for Kind {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.tag())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Kind {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let tag = <std::borrow::Cow<'de, str>>::deserialize(deserializer)?;
+        Ok(Kind::from_tag(&tag))
+    }
+}
+
 /// An attribute value.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(untagged)
+)]
 pub enum AttrValue {
     /// Text.
     Str(String),
@@ -318,9 +352,29 @@ pub const BASIC_ATTRIBUTES: [&str; 4] = ["ids", "classes", "names", "dupnames"];
 
 /// An element's attributes, kept sorted by name.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(transparent)
+)]
 pub struct Attributes(BTreeMap<String, AttrValue>);
 
 impl Attributes {
+    /// The number of attributes.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Whether there are none.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Whether `name` is set.
+    pub fn contains(&self, name: &str) -> bool {
+        self.0.contains_key(name)
+    }
+
     /// The value of `name`, if set.
     pub fn get(&self, name: &str) -> Option<&AttrValue> {
         self.0.get(name)
@@ -372,6 +426,11 @@ impl Attributes {
 
 /// A node: an element or text.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(untagged)
+)]
 pub enum Node {
     /// An element.
     Element(Element),
@@ -395,6 +454,22 @@ impl Node {
             Node::Text(t) => t.value.clone(),
         }
     }
+
+    /// The element, if this is one.
+    pub fn as_element(&self) -> Option<&Element> {
+        match self {
+            Node::Element(e) => Some(e),
+            Node::Text(_) => None,
+        }
+    }
+
+    /// The text, if this is text.
+    pub fn as_text(&self) -> Option<&Text> {
+        match self {
+            Node::Element(_) => None,
+            Node::Text(t) => Some(t),
+        }
+    }
 }
 
 impl From<Element> for Node {
@@ -411,10 +486,16 @@ impl From<Text> for Node {
 
 /// Text content.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Text {
     /// The text, with escapes resolved.
+    #[cfg_attr(feature = "serde", serde(rename = "text"))]
     pub value: String,
     /// Where it came from, if known.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub span: Option<Span>,
 }
 
@@ -430,14 +511,27 @@ impl Text {
 
 /// An element: a kind, attributes, children and a span.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Element {
     /// The kind.
     pub kind: Kind,
     /// Attributes.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Attributes::is_empty")
+    )]
     pub attributes: Attributes,
     /// Child nodes.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
     pub children: Vec<Node>,
     /// Where it came from in the parsed text, if known.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub span: Option<Span>,
 }
 
@@ -482,10 +576,52 @@ impl Element {
     }
 
     /// The element's child elements.
-    pub fn elements(&self) -> impl Iterator<Item = &Element> {
+    pub fn elements(&self) -> impl DoubleEndedIterator<Item = &Element> {
         self.children.iter().filter_map(|n| match n {
             Node::Element(e) => Some(e),
             Node::Text(_) => None,
         })
+    }
+
+    /// The element's descendant elements (not itself), in document order.
+    ///
+    /// ```
+    /// use lsdocs_rst::{Kind, parse};
+    ///
+    /// let doc = parse("A *b* and **c**.\n");
+    /// let kinds: Vec<&str> = doc.descendants().map(|e| e.kind.tag()).collect();
+    /// assert_eq!(kinds, ["paragraph", "emphasis", "strong"]);
+    /// let strong = doc.find_all(&Kind::Strong).next().map(|e| e.astext());
+    /// assert_eq!(strong.as_deref(), Some("c"));
+    /// ```
+    pub fn descendants(&self) -> Descendants<'_> {
+        Descendants {
+            stack: self.elements().rev().collect(),
+        }
+    }
+
+    /// This element and its descendants of kind `kind`, in document order
+    /// (docutils' `findall` with a node class).
+    pub fn find_all<'a>(&'a self, kind: &'a Kind) -> impl Iterator<Item = &'a Element> + 'a {
+        std::iter::once(self)
+            .chain(self.descendants())
+            .filter(move |e| &e.kind == kind)
+    }
+}
+
+/// The descendant elements of an element, in document order; see
+/// [`Element::descendants`].
+#[derive(Debug, Clone)]
+pub struct Descendants<'a> {
+    stack: Vec<&'a Element>,
+}
+
+impl<'a> Iterator for Descendants<'a> {
+    type Item = &'a Element;
+
+    fn next(&mut self) -> Option<&'a Element> {
+        let next = self.stack.pop()?;
+        self.stack.extend(next.elements().rev());
+        Some(next)
     }
 }

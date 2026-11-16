@@ -539,28 +539,45 @@ impl Document {
         last
     }
 
-    /// A new id for `node` (docutils' `document.create_id`, with the
-    /// default `id_prefix` and `auto_id_prefix` settings).
+    /// A new id for `node` (docutils' `document.create_id`), with the
+    /// `id_prefix` and `auto_id_prefix` settings.
     fn create_id(&mut self, node: &Element, suggested_prefix: Option<&str>) -> String {
+        let settings = &self.extensions.settings;
+        let (id_prefix, auto_id_prefix) = (&settings.id_prefix, &settings.auto_id_prefix);
         let mut base_id = String::new();
+        let mut id = String::new();
         for name in node.attributes.get_list("names") {
-            base_id = make_id(name);
-            if !base_id.is_empty() && !self.ids.contains_key(&base_id) {
-                return base_id;
+            base_id = if id_prefix.is_empty() {
+                make_id(name)
+            } else {
+                // With a prefix, names may start with digits.
+                make_id(&format!("x{name}"))[1..].to_owned()
+            };
+            id = format!("{id_prefix}{base_id}");
+            if !base_id.is_empty() && !self.ids.contains_key(&id) {
+                return id;
             }
         }
+        let auto = auto_id_prefix.ends_with('%');
         let dupnames = node.attributes.get_list("dupnames");
-        let prefix = if !base_id.is_empty() {
-            format!("{base_id}-")
-        } else if let Some(first) = dupnames.first()
+        let prefix = if !base_id.is_empty() && auto {
+            format!("{id}-")
+        } else if auto
+            && let Some(first) = dupnames.first()
             && !make_id(first).is_empty()
         {
             format!("{}-", make_id(first))
         } else {
-            match suggested_prefix {
-                Some(p) => format!("{p}-"),
-                None => format!("{}-", make_id(node.kind.tag())),
+            let mut prefix = format!("{id_prefix}{auto_id_prefix}");
+            if prefix.ends_with('%') {
+                prefix.pop();
+                match suggested_prefix {
+                    Some(p) => prefix.push_str(p),
+                    None => prefix.push_str(&make_id(node.kind.tag())),
+                }
+                prefix.push('-');
             }
+            prefix
         };
         loop {
             let n = self.id_counter.entry(prefix.clone()).or_insert(0);

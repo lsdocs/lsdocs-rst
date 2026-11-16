@@ -1,0 +1,16 @@
+<document source="test data">
+    <system_message level="2" line="1" source="test data" type="WARNING">
+        <paragraph>
+            "raw" directive disabled.
+        <literal_block xml:space="preserve">
+            .. raw:: html
+            
+               <b>bold</b>
+    <paragraph>
+        Inline 
+        <problematic ids="problematic-1" refid="system-message-1">
+            :html:`<i>x</i>`
+         here.
+    <system_message backrefs="problematic-1" ids="system-message-1" level="2" line="9" source="test data" type="WARNING">
+        <paragraph>
+            raw (and derived) roles disabled

@@ -1,0 +1,31 @@
+<document source="test data">
+    <section dupnames="title" ids="p-title">
+        <title>
+            Title
+        <target ids="p-1st-target" names="1st\ target">
+        <paragraph>
+            Para 
+            <footnote_reference auto="1" ids="p-id1">
+             and 
+            <reference name="Title" refname="title">
+                Title
+             and 
+            <reference name="1st-target" refname="1st-target">
+                1st-target
+            .
+        <footnote auto="1" ids="p-id2">
+            <paragraph>
+                Note.
+    <section dupnames="title" ids="p-id3">
+        <title>
+            Title
+        <system_message backrefs="p-id3" level="1" line="11" source="test data" type="INFO">
+            <paragraph>
+                Duplicate implicit target name: "title".
+        <paragraph>
+            Again.
+    <section ids="p-2nd" names="2nd">
+        <title>
+            2nd
+        <paragraph>
+            Numbered.

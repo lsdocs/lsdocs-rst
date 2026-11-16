@@ -1,0 +1,37 @@
+<document source="test data">
+    <field_list>
+        <field>
+            <field_name>
+                Author
+            <field_body>
+                <paragraph>
+                    Me
+        <field>
+            <field_name>
+                Version
+            <field_body>
+                <paragraph>
+                    1
+    <topic classes="contents" ids="contents" names="contents">
+        <title>
+            Contents
+        <pending>
+            .. internal attributes:
+                 .transform: docutils.transforms.parts.Contents
+                 .details:
+    <pending>
+        .. internal attributes:
+             .transform: docutils.transforms.parts.SectNum
+             .details:
+    <comment xml:space="preserve">
+        a comment
+    <section ids="title" names="title">
+        <title>
+            Title
+        <paragraph>
+            Text.
+        <section ids="sub" names="sub">
+            <title>
+                Sub
+            <paragraph>
+                More.

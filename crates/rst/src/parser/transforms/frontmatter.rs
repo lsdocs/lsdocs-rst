@@ -79,16 +79,40 @@ fn into_element(n: Node) -> Element {
 /// A lone top-level section becomes the document title, and a lone
 /// subsection then the subtitle (docutils' `DocTitle`).
 pub(super) fn doc_title(doc: &mut Document, root: &mut Element) {
-    if doc.extensions.doctitle && promote_title(doc, root) {
+    if doc.extensions.settings.doctitle_xform && promote_title(doc, root) {
         promote_subtitle(doc, root);
     }
-    if !has(root, "title")
-        && let Some(Node::Element(title)) = root.children.first()
+    if has(root, "title") {
+        return;
+    }
+    if let Some(title) = &doc.extensions.settings.title {
+        root.attributes.set("title", title.as_str());
+    } else if let Some(Node::Element(title)) = root.children.first()
         && title.kind == Kind::Title
     {
         let text = astext(title);
         root.attributes.set("title", text);
     }
+}
+
+/// A lone subsection of a section becomes its subtitle (docutils'
+/// `SectionSubTitle`, with `sectsubtitle_xform`), sections in document
+/// order.
+pub(super) fn section_subtitles(doc: &mut Document, root: &mut Element) {
+    if !doc.extensions.settings.sectsubtitle_xform {
+        return;
+    }
+    fn visit(doc: &mut Document, e: &mut Element) {
+        if e.kind == Kind::Section {
+            promote_subtitle(doc, e);
+        }
+        for child in &mut e.children {
+            if let Node::Element(c) = child {
+                visit(doc, c);
+            }
+        }
+    }
+    visit(doc, root);
 }
 
 fn promote_title(doc: &mut Document, node: &mut Element) -> bool {
@@ -146,6 +170,9 @@ const BIBLIOGRAPHIC: [&str; 12] = [
 /// A field list first in the document becomes the docinfo, with the
 /// dedication and abstract topics (docutils' `DocInfo`).
 pub(super) fn doc_info(doc: &mut Document, root: &mut Element) {
+    if !doc.extensions.settings.docinfo_xform {
+        return;
+    }
     let Some(index) = root.children.iter().position(|n| !pre_bibliographic(n)) else {
         return;
     };

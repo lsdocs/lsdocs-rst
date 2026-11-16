@@ -17,13 +17,21 @@
 //! The crate stands alone: it depends on nothing from lsdocs, and lsdocs'
 //! `parser-rst` plugin converts its tree into lsdocs' own.
 //!
-//! **Status:** early. The parser handles the block structure (sections,
-//! lists, tables, explicit markup and the rest), inline markup with the
-//! standard roles, the standard directives and, optionally, docutils'
-//! transforms ([`Parser::transforms`]), each checked against docutils' own
-//! output (see `tests/conformance.rs`). Callers can add directives and
-//! roles (see [`extension`]) and let directives read files (see
-//! [`files`]).
+//! The parser handles the block structure (sections, lists, tables,
+//! explicit markup and the rest), inline markup with the standard roles,
+//! the standard directives and, optionally, docutils' transforms
+//! ([`Parser::transforms`]), each checked against docutils' own output
+//! (see `tests/conformance.rs`). Beyond that:
+//!
+//! - [`settings`]: the docutils settings that change the tree, by their
+//!   docutils names.
+//! - [`extension`]: directives and roles of your own.
+//! - [`files`]: letting directives such as `include` read files.
+//! - [`nodes`]: the tree, and with the `serde` feature its serialized form.
+//! - [`xml`]: Docutils XML output, as `docutils --writer=xml` writes it.
+//!
+//! **Features:** `serde` derives `Serialize` and `Deserialize` for the tree,
+//! [`Settings`] and [`XmlOptions`].
 
 pub mod extension;
 pub mod files;
@@ -32,16 +40,20 @@ pub mod nodes;
 mod parser;
 mod patterns;
 mod pformat;
+pub mod settings;
 mod tables;
 mod util;
+pub mod xml;
 
 pub use extension::{
     Directive, DirectiveContext, DirectiveError, DirectiveSpec, OptionKind, OptionValue, Role,
     RoleContext,
 };
 pub use files::{DirectoryLoader, FileLoader};
-pub use nodes::{AttrValue, Attributes, Element, Kind, Node, Span, Text};
+pub use nodes::{AttrValue, Attributes, Descendants, Element, Kind, Node, Span, Text};
 pub use parser::Parser;
+pub use settings::{Settings, TocBacklinks};
+pub use xml::XmlOptions;
 
 /// `name` as docutils makes ids of names (`docutils.nodes.make_id`):
 /// lowercase ASCII letters and digits, with every run of anything else a

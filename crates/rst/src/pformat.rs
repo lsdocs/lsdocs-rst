@@ -24,6 +24,12 @@ impl Element {
 
     /// The element's start tag, e.g. `<section ids="intro" names="intro">`.
     pub fn starttag(&self) -> String {
+        self.starttag_with(|value| format!("\"{value}\""))
+    }
+
+    /// The start tag with attribute values quoted by `quote` (docutils'
+    /// `Element.starttag(quoteattr)`).
+    pub(crate) fn starttag_with(&self, quote: fn(&str) -> String) -> String {
         let mut tag = format!("<{}", self.kind.tag());
         for (name, value) in self.attributes.iter() {
             if self.kind == Kind::Pending && name.starts_with('.') {
@@ -44,9 +50,10 @@ impl Element {
                 AttrValue::Str(s) => s.clone(),
                 AttrValue::Int(n) => n.to_string(),
                 AttrValue::Bool(b) => u8::from(*b).to_string(),
-                AttrValue::None => "None".to_owned(),
+                // docutils writes a value of `None` this way.
+                AttrValue::None => "True".to_owned(),
             };
-            tag.push_str(&format!(" {name}=\"{value}\""));
+            tag.push_str(&format!(" {name}={}", quote(&value)));
         }
         tag.push('>');
         tag
@@ -73,7 +80,7 @@ impl Node {
 }
 
 /// Escapes an item of a list attribute value.
-fn serial_escape(value: &str) -> String {
+pub(crate) fn serial_escape(value: &str) -> String {
     value.replace('\\', "\\\\").replace(' ', "\\ ")
 }
 

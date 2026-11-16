@@ -1,10 +1,13 @@
 //! Conformance with docutils: every `cases/<name>.rst` is parsed and printed
 //! as pseudo-XML, and must equal what docutils wrote (`nur gen rst`):
 //! `cases/<name>.pxml` for the parser alone, `cases/<name>.tpxml` with
-//! transforms too. Cases listed in `cases/PENDING` (or
+//! transforms too, and `cases/<name>.xml`, the transformed tree through the
+//! XML writer. Cases listed in `cases/PENDING` (or
 //! `cases/PENDING-TRANSFORMS`) are expected to differ until the parser
 //! supports them; one that starts matching fails the test too, so the
-//! lists stay accurate.
+//! lists stay accurate. A case with a `cases/<name>.settings.json` (docutils
+//! setting names and values) is parsed with those settings, by docutils
+//! too.
 
 #![allow(clippy::unwrap_used)]
 
@@ -45,7 +48,12 @@ fn diff(expected: &str, actual: &str) -> String {
 }
 
 /// Compares every case's output with the `extension` files.
-fn check(extension: &str, pending_file: &str, parser: lsdocs_rst::Parser) {
+fn check(
+    extension: &str,
+    pending_file: &str,
+    parser: lsdocs_rst::Parser,
+    write: fn(&lsdocs_rst::Element) -> String,
+) {
     let pending = pending(pending_file);
     let mut cases: Vec<PathBuf> = std::fs::read_dir(cases_dir())
         .unwrap()
@@ -64,13 +72,16 @@ fn check(extension: &str, pending_file: &str, parser: lsdocs_rst::Parser) {
             failures.push(format!("{name}: no expected output; run `nur gen rst`"));
             continue;
         };
+        let mut parser = parser.clone();
+        if let Ok(json) = std::fs::read_to_string(case.with_extension("settings.json")) {
+            let settings: lsdocs_rst::Settings = serde_json::from_str(&json).unwrap();
+            parser = parser.settings(settings);
+        }
         // `file_*` cases may read files, from the cases directory.
-        let actual = if name.starts_with("file_") {
-            let loader = lsdocs_rst::DirectoryLoader::new(cases_dir());
-            parser.clone().file_loader(loader).parse(&text).pformat()
-        } else {
-            parser.parse(&text).pformat()
-        };
+        if name.starts_with("file_") {
+            parser = parser.file_loader(lsdocs_rst::DirectoryLoader::new(cases_dir()));
+        }
+        let actual = write(&parser.parse(&text));
         let matches = actual == expected;
         match (matches, pending.contains(&name)) {
             (true, false) => passed += 1,
@@ -106,6 +117,7 @@ fn parser_matches_docutils() {
         "pxml",
         "PENDING",
         lsdocs_rst::Parser::new().source("test data"),
+        lsdocs_rst::Element::pformat,
     );
 }
 
@@ -117,5 +129,23 @@ fn transforms_match_docutils() {
         lsdocs_rst::Parser::new()
             .source("test data")
             .transforms(true),
+        lsdocs_rst::Element::pformat,
+    );
+}
+
+#[test]
+fn xml_matches_docutils() {
+    check(
+        "xml",
+        "PENDING-TRANSFORMS",
+        lsdocs_rst::Parser::new()
+            .source("test data")
+            .transforms(true),
+        |doc| {
+            doc.to_xml(&lsdocs_rst::XmlOptions {
+                indents: true,
+                ..lsdocs_rst::XmlOptions::default()
+            })
+        },
     );
 }

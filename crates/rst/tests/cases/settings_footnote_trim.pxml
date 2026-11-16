@@ -1,0 +1,29 @@
+<document source="test data">
+    <paragraph>
+        Text
+        <footnote_reference ids="footnote-reference-1" refname="1">
+            1
+         and more
+        <footnote_reference auto="1" ids="footnote-reference-2">
+         and
+        <footnote_reference auto="*" ids="footnote-reference-3">
+         and a citation 
+        <citation_reference ids="citation-reference-1" refname="cit">
+            CIT
+        .
+    <footnote ids="footnote-1" names="1">
+        <label>
+            1
+        <paragraph>
+            One.
+    <footnote auto="1" ids="footnote-2">
+        <paragraph>
+            Auto.
+    <footnote auto="*" ids="footnote-3">
+        <paragraph>
+            Symbol.
+    <citation ids="cit" names="cit">
+        <label>
+            CIT
+        <paragraph>
+            Citation.
