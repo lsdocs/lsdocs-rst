@@ -1,0 +1,33 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "lsdocs-rst"
+version = "0.1.0"
+description = "A fast reStructuredText parser building docutils' document tree."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0 OR MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Documentation",
+    "Topic :: Text Processing :: Markup :: reStructuredText",
+]
+
+[project.optional-dependencies]
+# `Element.to_docutils()` builds a docutils document.
+docutils = ["docutils>=0.21"]
+
+[dependency-groups]
+dev = ["maturin>=1.9,<2", "pytest>=8", "docutils==0.23"]
+
+[tool.maturin]
+# The Rust extension is `lsdocs_rst._native`; the Python API around it
+# lives in python/lsdocs_rst.
+python-source = "python"
+module-name = "lsdocs_rst._native"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

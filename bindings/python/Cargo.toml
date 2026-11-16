@@ -1,0 +1,25 @@
+[package]
+name = "lsdocs-rst-python"
+description = "Python bindings (pyo3) for lsdocs-rst, the reStructuredText parser."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+# Imported as `lsdocs_rst._native`; see pyproject.toml.
+name = "_native"
+crate-type = ["cdylib"]
+# Needs a Python interpreter to run; tested with pytest instead.
+test = false
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+lsdocs-rst = { workspace = true, features = ["serde"] }
+pyo3.workspace = true
+pythonize.workspace = true
+serde.workspace = true
