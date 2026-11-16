@@ -1,12 +1,17 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 use lsdocs_plugin_sdk::doctree::{Document, Node, plain_text};
-use lsdocs_plugin_sdk::protocol::{Diagnostic, Severity};
+use lsdocs_plugin_sdk::protocol::{Diagnostic, Severity, Syntax};
 use serde_json::json;
 
 use super::parse;
 
 fn doc(text: &str) -> (Document, Vec<Diagnostic>) {
-    parse("guide/page.rst", text, None)
+    parse("guide/page.rst", text, None, &Syntax::default())
+}
+
+fn with_syntax(text: &str, syntax: serde_json::Value) -> (Document, Vec<Diagnostic>) {
+    let syntax: Syntax = serde_json::from_value(syntax).unwrap();
+    parse("guide/page.rst", text, None, &syntax)
 }
 
 fn kinds(doc: &Document) -> Vec<String> {
@@ -38,7 +43,7 @@ fn sections_nest_and_titles_stay_sections() {
 #[test]
 fn labels_become_ids_and_references_links() {
     let (d, diagnostics) = doc(
-        ".. _My Label:\n\nTitle\n=====\n\nSee `Other`_, `Title`_ and :ref:`my label`.\n\n\
+        ".. _My Label:\n\nTitle\n=====\n\nSee `Other`_, `Title`_ and `My Label`_.\n\n\
          Other\n-----\n\nUnreferenced\n------------\n",
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
@@ -63,27 +68,66 @@ fn labels_become_ids_and_references_links() {
         [
             json!(["#other", {"anchor": "other"}, "Other"]),
             json!(["#title", {"anchor": "title"}, "Title"]),
-            json!(["#my-label", {"label": "my-label"}, ""]),
+            json!(["#my-label", {"anchor": "my-label"}, "My Label"]),
         ]
     );
 }
 
 #[test]
-fn doc_role_links_to_rst_documents() {
-    let (d, _) = doc(":doc:`intro` and :doc:`The setup </setup/index>`.\n");
-    let links: Vec<_> = d
-        .descendants()
-        .filter_map(|n| match n {
-            Node::Link(l) => Some((l.url.clone(), plain_text(&l.children))),
-            _ => None,
-        })
-        .collect();
+fn declared_directives_and_roles_become_custom_nodes() {
+    let syntax = json!({
+        "directives": [
+            {"name": "versionadded", "required_arguments": 1, "final_argument_whitespace": true,
+             "options": {"class": "value", "hidden": "flag"}, "content": "blocks"},
+            {"name": "centered", "required_arguments": 1, "final_argument_whitespace": true,
+             "argument": "inline"},
+            {"name": "code-block", "optional_arguments": 1, "content": "text"},
+        ],
+        "roles": [{"name": "kbd"}],
+    });
+    let (d, diagnostics) = with_syntax(
+        ".. versionadded:: 1.2 beta\n   :class: x\n   :hidden:\n\n   *New* here.\n\n\
+         .. centered:: Hello *world*\n\n\
+         .. code-block:: rust\n\n   fn main() {}\n   // done\n\n\
+         Press :kbd:`Ctrl\\+C`.\n",
+        syntax.clone(),
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let value = serde_json::to_value(&d.children).unwrap();
+    assert_eq!(value[0]["type"], "custom");
+    assert_eq!(value[0]["kind"], "versionadded");
     assert_eq!(
-        links,
-        [
-            ("intro.rst".to_owned(), String::new()),
-            ("/setup/index.rst".to_owned(), "The setup".to_owned())
-        ]
+        value[0]["attrs"],
+        json!({"argument": "1.2 beta", "options": {"class": "x", "hidden": true}})
+    );
+    assert_eq!(value[0]["children"][0]["type"], "paragraph");
+    assert_eq!(value[0]["children"][0]["children"][0]["type"], "emphasis");
+    assert_eq!(value[1]["kind"], "centered");
+    assert_eq!(value[1]["children"][0]["kind"], "directive_argument");
+    assert_eq!(value[1]["children"][0]["children"][1]["type"], "emphasis");
+    assert_eq!(
+        value[2]["attrs"],
+        json!({"argument": "rust", "content": "fn main() {}\n// done"})
+    );
+    let role = &value[3]["children"][1];
+    assert_eq!(role["kind"], "role");
+    assert_eq!(role["attrs"], json!({"name": "kbd", "text": "Ctrl+C"}));
+    assert_eq!(role["children"][0]["value"], "Ctrl+C");
+    // Declarations are checked as docutils checks directives.
+    let (_, diagnostics) = with_syntax(".. versionadded::\n   :nope: 1\n", syntax);
+    assert!(
+        diagnostics[0]
+            .message
+            .contains("Error in \"versionadded\" directive"),
+        "{diagnostics:?}"
+    );
+    // Undeclared, the role is unknown.
+    let (_, diagnostics) = doc(":kbd:`x`\n");
+    assert!(
+        diagnostics[0]
+            .message
+            .contains("Unknown interpreted text role \"kbd\""),
+        "{diagnostics:?}"
     );
 }
 
@@ -230,6 +274,7 @@ fn includes_read_from_the_source_directory() {
         "guide/page.rst",
         ".. include:: part.txt\n",
         Some(dir.to_str().unwrap()),
+        &Syntax::default(),
     );
     std::fs::remove_dir_all(&dir).ok();
     assert!(diagnostics.is_empty(), "{diagnostics:?}");

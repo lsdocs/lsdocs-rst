@@ -492,6 +492,7 @@ impl Cx<'_> {
                 return;
             }
             Kind::Other(name) if name == "directive" => self.directive(e),
+            Kind::Other(name) if name == super::DIRECTIVE => self.declared(e, depth),
             // Invisible, or handled by their parents.
             Kind::Comment
             | Kind::SubstitutionDefinition
@@ -765,6 +766,40 @@ impl Cx<'_> {
         .into()
     }
 
+    /// A directive a plugin declared: a custom node of its name, with the
+    /// attributes `Declared` made, an inline argument as a first
+    /// `directive_argument` child, and the content parsed.
+    fn declared(&mut self, e: &Element, depth: u8) -> dt::Node {
+        let attrs = attr(e, "attrs")
+            .and_then(|a| serde_json::from_str(a).ok())
+            .unwrap_or_default();
+        let mut children = Vec::new();
+        for child in &e.children {
+            match child {
+                Node::Element(c) if c.kind == Kind::Other(super::ARGUMENT.into()) => {
+                    children.push(
+                        Custom {
+                            span: span(c.span),
+                            kind: "directive_argument".into(),
+                            attrs: std::collections::BTreeMap::new(),
+                            children: self.inlines(&c.children),
+                        }
+                        .into(),
+                    );
+                }
+                Node::Element(c) => self.block(c, depth, &mut children),
+                Node::Text(_) => {}
+            }
+        }
+        Custom {
+            span: span(e.span),
+            kind: attr(e, "name").unwrap_or("directive").to_owned(),
+            attrs,
+            children,
+        }
+        .into()
+    }
+
     /// Bibliographic fields as metadata.
     fn docinfo(&mut self, e: &Element) {
         for item in e.elements() {
@@ -867,32 +902,15 @@ impl Cx<'_> {
                 }
                 .into()
             }
-            Kind::Other(kind) if kind == super::REF => {
-                let label = lsdocs_rst::make_id(attr(e, "label").unwrap_or_default());
-                Link {
-                    span: s,
-                    url: format!("#{label}"),
-                    title: None,
-                    target: Some(LinkTarget {
-                        label: Some(label),
-                        ..LinkTarget::default()
-                    }),
-                    children: self.inlines(&e.children),
+            Kind::Other(kind) if kind == super::ROLE => {
+                let mut attrs = std::collections::BTreeMap::new();
+                for name in ["name", "text"] {
+                    attrs.insert(name.into(), json!(attr(e, name).unwrap_or_default()));
                 }
-                .into()
-            }
-            Kind::Other(kind) if kind == super::DOC => {
-                let path = attr(e, "path").unwrap_or_default();
-                let url = if path.ends_with(".rst") {
-                    path.to_owned()
-                } else {
-                    format!("{path}.rst")
-                };
-                Link {
+                Custom {
                     span: s,
-                    url,
-                    title: None,
-                    target: None,
+                    kind: "role".into(),
+                    attrs,
                     children: self.inlines(&e.children),
                 }
                 .into()

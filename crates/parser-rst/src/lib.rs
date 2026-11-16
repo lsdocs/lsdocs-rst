@@ -16,12 +16,9 @@
 //!   as docutils makes them: `My Label` is `my-label`). A section without
 //!   a label gets docutils' id only if something in the document links to
 //!   it; the host gives the others ids.
-//! - **Links:** references resolve as docutils resolves them. Two roles
-//!   from Sphinx link across the site: `` :ref:`label` `` (or
-//!   `` :ref:`text <label>` ``) points to a label anywhere, and
-//!   `` :doc:`path` `` to another reStructuredText document (relative to
-//!   this one, or to the source directory with a leading `/`; `.rst` is
-//!   added). Without text, `transform-links` fills in the target's title.
+//! - **Links:** references resolve as docutils resolves them. Links
+//!   across the site (Sphinx's `:ref:` and `:doc:`) are roles the
+//!   `sphinx-addons` plugin declares.
 //! - **Core kinds:** admonitions, footnotes and citations (as footnotes),
 //!   math, figures (a table's title makes it a figure's caption),
 //!   definition lists (field and option lists too), line blocks
@@ -31,6 +28,11 @@
 //!   and `footer`. A directive with no implementation becomes a custom
 //!   node of its name, with `argument`, `options` and `content`
 //!   attributes, for transformers to handle.
+//! - **Syntax extensions:** directives and roles plugins declare (see
+//!   "Syntax extensions" in `spec/wire.md`) are parsed by their
+//!   declaration, into the custom nodes the spec describes: a
+//!   directive's options are checked and its content parsed if it is
+//!   markup; a role keeps its text.
 //! - **Diagnostics:** docutils' warnings and errors become warnings, its
 //!   severe errors errors; info messages are dropped.
 //! - **Files:** `include`, `raw` and `csv-table` read files from the
@@ -46,10 +48,16 @@
 mod convert;
 
 use lsdocs_plugin_sdk::doctree::Value;
-use lsdocs_plugin_sdk::protocol::{InitializeParams, ParseParams, ParseResult};
+use lsdocs_plugin_sdk::protocol::{
+    ArgumentSyntax, ContentSyntax, DirectiveSyntax, InitializeParams, OptionSyntax, ParseParams,
+    ParseResult, Syntax,
+};
 use lsdocs_plugin_sdk::{Context, Parser, Plugin, PluginResult};
 use lsdocs_rst::nodes::{Element, Kind, Node, Text};
-use lsdocs_rst::{DirectiveError, Role, RoleContext};
+use lsdocs_rst::{
+    Directive, DirectiveContext, DirectiveError, DirectiveSpec, OptionKind, OptionValue, Role,
+    RoleContext,
+};
 
 pub use convert::convert;
 
@@ -82,7 +90,12 @@ impl Parser for Rst {
             .source_dir
             .clone()
             .filter(|_| file_access(ctx.options()));
-        let (document, diagnostics) = parse(&params.source, &params.text, source_dir.as_deref());
+        let (document, diagnostics) = parse(
+            &params.source,
+            &params.text,
+            source_dir.as_deref(),
+            &params.syntax,
+        );
         Ok(ParseResult {
             document,
             diagnostics,
@@ -91,16 +104,20 @@ impl Parser for Rst {
 }
 
 /// The `lsdocs-rst` parser the plugin uses: docutils' transforms without
-/// the document title, unknown directives kept, and the `ref` and `doc`
-/// roles; with `source_dir`, files are read from it.
-pub fn rst_parser(source: &str, source_dir: Option<&str>) -> lsdocs_rst::Parser {
+/// the document title, unknown directives kept, and the directives and
+/// roles of `syntax`; with `source_dir`, files are read from it.
+pub fn rst_parser(source: &str, source_dir: Option<&str>, syntax: &Syntax) -> lsdocs_rst::Parser {
     let mut parser = lsdocs_rst::Parser::new()
         .source(source)
         .transforms(true)
         .doctitle(false)
-        .keep_unknown_directives(true)
-        .role("ref", RefRole)
-        .role("doc", DocRole);
+        .keep_unknown_directives(true);
+    for directive in &syntax.directives {
+        parser = parser.directive(&directive.name, Declared(directive.clone()));
+    }
+    for role in &syntax.roles {
+        parser = parser.role(&role.name, DeclaredRole(role.name.clone()));
+    }
     if let Some(dir) = source_dir {
         parser = parser.file_loader(lsdocs_rst::DirectoryLoader::new(dir));
     }
@@ -110,67 +127,116 @@ pub fn rst_parser(source: &str, source_dir: Option<&str>) -> lsdocs_rst::Parser 
 /// Parses reStructuredText into a document, plus the problems docutils
 /// reported. `source` is the file's path relative to the source
 /// directory; with `source_dir`, directives may read files from it.
+/// `syntax` holds the directives and roles plugins declared.
 pub fn parse(
     source: &str,
     text: &str,
     source_dir: Option<&str>,
+    syntax: &Syntax,
 ) -> (
     lsdocs_plugin_sdk::doctree::Document,
     Vec<lsdocs_plugin_sdk::protocol::Diagnostic>,
 ) {
-    let (tree, messages) = rst_parser(source, source_dir).parse_with_messages(text);
+    let (tree, messages) = rst_parser(source, source_dir, syntax).parse_with_messages(text);
     convert(source, text, &tree, &messages)
 }
 
-/// Element kinds the roles make, converted to links.
-pub(crate) const REF: &str = "lsdocs-ref";
-pub(crate) const DOC: &str = "lsdocs-doc";
+/// Element kinds declared directives and roles make, converted to custom
+/// nodes.
+pub(crate) const DIRECTIVE: &str = "lsdocs-directive";
+pub(crate) const ARGUMENT: &str = "lsdocs-directive-argument";
+pub(crate) const ROLE: &str = "lsdocs-role";
 
-/// `text <target>`: the text (if any) and the target.
-fn split_title(text: &str) -> (Option<String>, String) {
-    let text = text.trim();
-    if let Some(rest) = text.strip_suffix('>')
-        && let Some(i) = rest.rfind('<')
-        && i > 0
-        && rest[..i].ends_with(char::is_whitespace)
-    {
-        let title = rest[..i].trim();
-        return (Some(title.to_owned()), rest[i + 1..].trim().to_owned());
+/// A directive a plugin declared: its parts, parsed as declared, in an
+/// element for `convert` to turn into a custom node. Its `attrs`
+/// attribute holds the custom node's attributes as JSON.
+struct Declared(DirectiveSyntax);
+
+impl Directive for Declared {
+    fn spec(&self) -> DirectiveSpec {
+        let d = &self.0;
+        DirectiveSpec {
+            required_arguments: d.required_arguments as usize,
+            optional_arguments: d.optional_arguments as usize,
+            final_argument_whitespace: d.final_argument_whitespace,
+            options: d
+                .options
+                .iter()
+                .map(|(name, kind)| {
+                    let kind = match kind {
+                        OptionSyntax::Flag => OptionKind::Flag,
+                        OptionSyntax::Value => OptionKind::Text,
+                        OptionSyntax::Required => OptionKind::RequiredText,
+                    };
+                    (name.clone(), kind)
+                })
+                .collect(),
+            has_content: d.content != ContentSyntax::None,
+        }
     }
-    (None, text.to_owned())
+
+    fn run(&self, cx: &mut DirectiveContext<'_>) -> Result<Vec<Node>, DirectiveError> {
+        let d = &self.0;
+        let mut attrs = serde_json::Map::new();
+        let argument = cx.arguments().join(" ");
+        if !argument.is_empty() {
+            attrs.insert("argument".into(), Value::String(argument.clone()));
+        }
+        let mut options = serde_json::Map::new();
+        for (name, value) in cx.options() {
+            let value = match value {
+                OptionValue::Flag => Value::Bool(true),
+                OptionValue::Text(text) => Value::String(text),
+                OptionValue::Int(n) => Value::String(n.to_string()),
+                OptionValue::List(items) => Value::String(items.join(" ")),
+                _ => continue,
+            };
+            options.insert(name, value);
+        }
+        if !options.is_empty() {
+            attrs.insert("options".into(), Value::Object(options));
+        }
+        let mut element =
+            Element::new(Kind::Other(DIRECTIVE.into())).with_attr("name", d.name.as_str());
+        element.span = cx.span();
+        match d.content {
+            ContentSyntax::Text => {
+                let content = cx.content();
+                if !content.is_empty() {
+                    attrs.insert("content".into(), Value::String(content.join("\n")));
+                }
+            }
+            ContentSyntax::Blocks => element = cx.parse_content(element),
+            ContentSyntax::None => {}
+        }
+        let mut out = Vec::new();
+        if d.argument == ArgumentSyntax::Inline && !argument.is_empty() {
+            let (nodes, messages) = cx.parse_inline(&argument);
+            let mut child = Element::new(Kind::Other(ARGUMENT.into())).with_children(nodes);
+            child.span = cx.span();
+            element.children.insert(0, child.into());
+            out.extend(messages.into_iter().map(Node::from));
+        }
+        let attrs = serde_json::to_string(&attrs).unwrap_or_default();
+        element = element.with_attr("attrs", attrs.as_str());
+        out.insert(0, element.into());
+        Ok(out)
+    }
 }
 
-fn role_node(kind: &str, attr: &str, cx: &RoleContext<'_>) -> Result<Vec<Node>, DirectiveError> {
-    let (title, target) = split_title(&cx.text());
-    if target.is_empty() {
-        return Err(DirectiveError::error(format!(
-            "The \"{}\" role needs a target.",
-            cx.name()
-        )));
-    }
-    let mut node = Element::new(Kind::Other(kind.into())).with_attr(attr, target);
-    node.span = cx.span();
-    if let Some(title) = title {
-        node.children.push(Text::new(title, cx.span()).into());
-    }
-    Ok(vec![node.into()])
-}
+/// A role a plugin declared: its name and text, for `convert` to turn
+/// into a custom node.
+struct DeclaredRole(String);
 
-/// `` :ref:`label` ``: a link to a label anywhere in the site.
-struct RefRole;
-
-impl Role for RefRole {
+impl Role for DeclaredRole {
     fn run(&self, cx: &mut RoleContext<'_>) -> Result<Vec<Node>, DirectiveError> {
-        role_node(REF, "label", cx)
-    }
-}
-
-/// `` :doc:`path` ``: a link to another reStructuredText document.
-struct DocRole;
-
-impl Role for DocRole {
-    fn run(&self, cx: &mut RoleContext<'_>) -> Result<Vec<Node>, DirectiveError> {
-        role_node(DOC, "path", cx)
+        let text = cx.text();
+        let mut node = Element::new(Kind::Other(ROLE.into()))
+            .with_attr("name", self.0.as_str())
+            .with_attr("text", text.as_str());
+        node.span = cx.span();
+        node.children.push(Text::new(text, cx.span()).into());
+        Ok(vec![node.into()])
     }
 }
 
