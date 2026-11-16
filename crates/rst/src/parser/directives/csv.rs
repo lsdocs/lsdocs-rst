@@ -235,6 +235,7 @@ pub(crate) fn read(lines: &[String], dialect: &Dialect) -> Result<Vec<Row>, Stri
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
 
     fn docutils() -> Dialect {

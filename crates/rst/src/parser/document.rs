@@ -194,7 +194,10 @@ impl Document {
         while self.stack.len() > 1 {
             self.close();
         }
-        let mut root = self.stack.pop().unwrap().element;
+        let mut root = match self.stack.pop() {
+            Some(frame) => frame.element,
+            None => Element::new(Kind::Document),
+        };
         for (key, name) in std::mem::take(&mut self.deferred_dupnames) {
             if let Some(node) = find_in(&mut root, key) {
                 dupname(node, &name);
@@ -217,7 +220,9 @@ impl Document {
 
     /// The current parent: the innermost open element.
     pub(crate) fn top(&mut self) -> &mut Element {
-        &mut self.stack.last_mut().unwrap().element
+        // `close` never pops the root, so the stack is never empty.
+        let last = self.stack.len() - 1;
+        &mut self.stack[last].element
     }
 
     /// The document element.
@@ -256,7 +261,9 @@ impl Document {
                 .unwrap_or(self.stack[0].element.children.len());
             self.insert_in_root(index, vec![Element::new(Kind::Decoration).into()]);
         }
-        let i = position(&self.stack[0].element).unwrap();
+        let Some(i) = position(&self.stack[0].element) else {
+            return;
+        };
         let Node::Element(decoration) = &mut self.stack[0].element.children[i] else {
             return;
         };
@@ -334,7 +341,10 @@ impl Document {
     /// parent, a detached one returned. Its span grows to cover its
     /// children.
     pub(crate) fn close(&mut self) -> Option<Element> {
-        let Frame { mut element, at } = self.stack.pop().expect("an open element");
+        if self.stack.len() < 2 {
+            return None;
+        }
+        let Frame { mut element, at } = self.stack.pop()?;
         cover_children(&mut element);
         match at {
             Some(i) => {
@@ -345,6 +355,13 @@ impl Document {
             }
             None => Some(element),
         }
+    }
+
+    /// Closes the current parent, opened detached, and returns it. An
+    /// unbalanced close (a bug) returns an empty element.
+    pub(crate) fn close_detached(&mut self) -> Element {
+        self.close()
+            .unwrap_or_else(|| Element::new(Kind::Other("Element".into())))
     }
 
     /// Whether the current parent is in the document tree, not in an

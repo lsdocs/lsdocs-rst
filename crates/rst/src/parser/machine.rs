@@ -95,6 +95,12 @@ pub(crate) enum Flow {
 /// The result of a transition: the next state.
 pub(crate) type Step = Result<State, Flow>;
 
+/// The match of the pattern that chose a transition. Should it not match
+/// after all, the line is retried as text.
+pub(crate) fn matched<T>(found: Option<T>) -> Result<T, Flow> {
+    found.ok_or(Flow::TransitionCorrection(Tr::Text))
+}
+
 /// Input lines shared by the machines working on them. Like docutils'
 /// `ViewList`, a list taken from another remembers where (`parent`), and
 /// lines inserted into it (by `include`) go into that list too.
@@ -160,6 +166,8 @@ pub(crate) struct Machine {
     pub(crate) quote: Option<char>,
     pub(crate) messages: Vec<crate::nodes::Element>,
     pub(crate) initial_lineno: usize,
+    /// Stands in for the current line before the first or after the last.
+    blank: Line,
 }
 
 impl Machine {
@@ -182,6 +190,7 @@ impl Machine {
             quote: None,
             messages: Vec::new(),
             initial_lineno: 0,
+            blank: Line::default(),
         }
     }
 
@@ -255,7 +264,7 @@ impl Machine {
 
     /// The current line.
     pub(crate) fn line(&self) -> &Line {
-        self.get(self.line_offset).expect("a current line")
+        self.get(self.line_offset).unwrap_or(&self.blank)
     }
 
     /// The current line's text.
@@ -296,10 +305,13 @@ impl Machine {
     pub(crate) fn source_and_line(&self) -> (Option<Rc<str>>, Option<usize>) {
         let len = self.len();
         let off = self.line_offset;
-        let (line, past_end) = match self.get(off) {
-            Some(l) => (l, 0),
-            None if off == len && len > 0 => (self.get(len - 1).unwrap(), 1),
-            None => return (None, None),
+        let found = match self.get(off) {
+            Some(l) => Some((l, 0)),
+            None if off == len => self.get(len - 1).map(|l| (l, 1)),
+            None => None,
+        };
+        let Some((line, past_end)) = found else {
+            return (None, None);
         };
         let number = line.origin.offset + 1 + past_end;
         (line.origin.source.clone(), usize::try_from(number).ok())
@@ -320,9 +332,10 @@ impl Machine {
         let (source, line) = match self.get(off) {
             Some(l) => (l.origin.source.clone(), Some(l.origin.offset + 1)),
             // Just past the end: the last line's source, no line.
-            None if off == len && len > 0 => {
-                (self.get(len - 1).unwrap().origin.source.clone(), None)
-            }
+            None if off == len => (
+                self.get(len - 1).and_then(|l| l.origin.source.clone()),
+                None,
+            ),
             None => (None, None),
         };
         doc.current_source = source;

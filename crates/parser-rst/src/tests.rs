@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::panic)]
 use lsdocs_plugin_sdk::doctree::{Document, Node, plain_text};
 use lsdocs_plugin_sdk::protocol::{Diagnostic, Severity};
 use serde_json::json;

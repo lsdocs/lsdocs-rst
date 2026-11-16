@@ -137,7 +137,9 @@ pub(crate) fn enumerator(s: &[char]) -> Option<Enumerator> {
         if format == Format::Parens && s.first() != Some(&'(') {
             continue;
         }
-        let suffix = format.suffix().chars().next().unwrap();
+        let Some(suffix) = format.suffix().chars().next() else {
+            continue;
+        };
         for e in enum_texts(s, start) {
             if s.get(e) == Some(&suffix)
                 && let Some(end) = spaces_or_end(s, e + 1)
@@ -538,6 +540,7 @@ pub(crate) fn is_email(s: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
 
     fn c(s: &str) -> Vec<char> {

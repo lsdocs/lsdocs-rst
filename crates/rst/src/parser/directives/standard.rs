@@ -399,7 +399,7 @@ pub(super) fn parse_content(
 ) -> Element {
     doc.open(node, false);
     m.nested_parse(doc, call.content.clone(), call.content_offset);
-    doc.close().unwrap()
+    doc.close_detached()
 }
 
 /// The nodes parsed from the content, in an anonymous container.
@@ -643,14 +643,16 @@ pub(super) fn number_lines(node: &mut Element, text: &str, start: i64, end: i64)
     let mut lineno = start;
     node.children.push(ln(lineno));
     let parts: Vec<&str> = text.split('\n').collect();
-    for part in &parts[..parts.len() - 1] {
+    let Some((last, parts)) = parts.split_last() else {
+        return;
+    };
+    for part in parts {
         node.children
             .push(Text::new(format!("{part}\n"), None).into());
         lineno += 1;
         node.children.push(ln(lineno));
     }
-    node.children
-        .push(Text::new(*parts.last().unwrap(), None).into());
+    node.children.push(Text::new(*last, None).into());
 }
 
 fn math(_: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
@@ -1228,7 +1230,7 @@ fn meta(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node
         true,
         |_| {},
     );
-    let mut node = doc.close().unwrap();
+    let mut node = doc.close_detached();
     if offset - call.content_offset != call.content.len() as isize {
         node.children.push(
             doc.message(
@@ -1257,7 +1259,9 @@ impl Machine {
         doc: &mut Document,
         state: State,
     ) -> crate::parser::machine::Step {
-        let end = crate::patterns::field_marker(&self.text().chars().collect::<Vec<_>>()).unwrap();
+        let end = crate::parser::machine::matched(crate::patterns::field_marker(
+            &self.text().chars().collect::<Vec<_>>(),
+        ))?;
         let marker: String = self.text().chars().take(end).collect();
         let name = &marker[1..];
         let name = &name[..name.rfind(':').unwrap_or(name.len())];
@@ -1327,10 +1331,9 @@ fn extract_name_value(line: &str) -> Result<Vec<(String, String)>, String> {
             return Err("missing attribute name before \"=\"".to_owned());
         }
         line = crate::util::lstrip(&line[eq + 1..]).to_owned();
-        if line.is_empty() {
+        let Some(first) = line.chars().next() else {
             return Err(format!("missing value after \"{name}=\""));
-        }
-        let first = line.chars().next().unwrap();
+        };
         let data;
         if first == '\'' || first == '"' {
             let Some(end) = line[1..].find(first).map(|i| i + 1) else {

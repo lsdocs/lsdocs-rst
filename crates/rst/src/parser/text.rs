@@ -4,7 +4,7 @@
 
 use super::document::{At, Document, ERROR, INFO, MsgNode, Style, WARNING, fixed, paragraph};
 use super::inline::{Origin, astext, inline_text};
-use super::machine::{Flow, Machine, State, Step, Tr, join, span_of};
+use super::machine::{Flow, Machine, State, Step, Tr, join, matched, span_of};
 use crate::lines::Line;
 use crate::nodes::{Element, Kind, Node, Text};
 use crate::patterns;
@@ -139,7 +139,7 @@ impl Machine {
         let mut m = Machine::new_view(self.current_on());
         m.run(doc, State::QuotedLiteralBlock);
         self.goto_line(doc, m.abs_line_offset());
-        doc.close().unwrap().children
+        doc.close_detached().children
     }
 
     /// Quoted literal block lines.
@@ -226,7 +226,7 @@ impl Machine {
         }
         doc.open(definition, false);
         self.nested_parse(doc, indented, offset);
-        item.children.push(doc.close().unwrap().into());
+        item.children.push(doc.close_detached().into());
         super::document::cover_children(&mut item);
         (item, blank_finish)
     }
@@ -311,7 +311,7 @@ impl Machine {
             context.clear();
             return Ok(State::Body);
         }
-        let style = Style::Under(underline.chars().next().unwrap());
+        let style = Style::Under(matched(underline.chars().next())?);
         let title_line = context[0].clone();
         context.clear();
         self.section(
@@ -506,8 +506,8 @@ impl Machine {
             ));
         }
         let style = Style::Over(
-            overline.chars().next().unwrap(),
-            underline.chars().next().unwrap(),
+            matched(overline.chars().next())?,
+            matched(underline.chars().next())?,
         );
         let skip = char_len(&title) - char_len(lstrip(&title));
         context.clear();
@@ -584,8 +584,9 @@ fn transition(line: &Line) -> Element {
 
 /// A definition list term and its classifiers.
 fn term(doc: &mut Document, line: &Line, lineno: usize) -> (Vec<Node>, Vec<Element>) {
-    let mut nodes: Vec<Element> = vec![Element::new(Kind::Term)];
-    nodes[0].span = Some(line.span);
+    let mut term = Element::new(Kind::Term);
+    term.span = Some(line.span);
+    let mut classifiers: Vec<Element> = Vec::new();
     let (inlines, messages) = inline_text(
         doc,
         &line.text,
@@ -593,28 +594,26 @@ fn term(doc: &mut Document, line: &Line, lineno: usize) -> (Vec<Node>, Vec<Eleme
         &Origin::of(std::slice::from_ref(line)),
     );
     for node in inlines {
+        let current = classifiers.last_mut().unwrap_or(&mut term);
         match node {
             Node::Text(t) => {
                 let parts = split_classifiers(&t.value);
                 if parts.len() == 1 {
-                    nodes.last_mut().unwrap().children.push(Node::Text(t));
+                    current.children.push(Node::Text(t));
                 } else {
                     let first = rstrip(&parts[0]).to_owned();
-                    nodes
-                        .last_mut()
-                        .unwrap()
-                        .children
-                        .push(Text::new(first, t.span).into());
+                    current.children.push(Text::new(first, t.span).into());
                     for part in &parts[1..] {
-                        nodes.push(
+                        classifiers.push(
                             Element::new(Kind::Classifier)
                                 .with_child(Text::new(part.clone(), t.span)),
                         );
                     }
                 }
             }
-            other => nodes.last_mut().unwrap().children.push(other),
+            other => current.children.push(other),
         }
     }
-    (nodes.into_iter().map(Node::from).collect(), messages)
+    let nodes = std::iter::once(term).chain(classifiers);
+    (nodes.map(Node::from).collect(), messages)
 }

@@ -5,7 +5,7 @@
 //! Directives themselves are in the `directives` module.
 
 use super::document::{At, Document, ERROR, MsgNode, NoteList, WARNING, fixed};
-use super::machine::{Machine, State, Step, join, span_of};
+use super::machine::{Flow, Machine, State, Step, join, matched, span_of};
 use crate::lines::Line;
 use crate::nodes::{Element, Kind, Node, Span, Text};
 use crate::patterns;
@@ -93,7 +93,7 @@ impl Machine {
 
     /// An anonymous target (`__ uri`) in Body, then any constructs after.
     pub(crate) fn anonymous(&mut self, doc: &mut Document, state: State) -> Step {
-        let (nodes, blank_finish) = self.anonymous_target(doc);
+        let (nodes, blank_finish) = self.anonymous_target(doc)?;
         doc.extend(nodes);
         self.explicit_list(doc, blank_finish);
         Ok(state)
@@ -101,7 +101,7 @@ impl Machine {
 
     /// A later anonymous target.
     pub(crate) fn anonymous_next(&mut self, doc: &mut Document, state: State) -> Step {
-        let (nodes, blank_finish) = self.anonymous_target(doc);
+        let (nodes, blank_finish) = self.anonymous_target(doc)?;
         doc.extend(nodes);
         self.blank_finish = blank_finish;
         Ok(state)
@@ -247,7 +247,7 @@ impl Machine {
         } else {
             doc.open(node, false);
             self.nested_parse(doc, indented, offset);
-            node = doc.close().unwrap();
+            node = doc.close_detached();
         }
         doc.update_snapshot(&node);
         (vec![node.into()], blank_finish)
@@ -284,17 +284,17 @@ impl Machine {
     }
 
     /// An anonymous target: `__ uri`.
-    fn anonymous_target(&mut self, doc: &mut Document) -> Construct {
+    fn anonymous_target(&mut self, doc: &mut Document) -> Result<Construct, Flow> {
         let start = self.line_offset;
         let lineno = self.abs_line_number();
         let line = self.text().to_owned();
-        let end = patterns::anonymous(&line.chars().collect::<Vec<_>>()).unwrap();
+        let end = matched(patterns::anonymous(&line.chars().collect::<Vec<_>>()))?;
         let (block, _, _, blank_finish) = self.get_first_known_indented(doc, end, true, true, true);
         let span = self.span(start, self.line_offset);
         let blocktext = format!("{}{}", take_chars(&line, end), join(&block));
         let block: Vec<String> = block.iter().map(|l| escape2null(&l.text)).collect();
         let target = self.make_target(doc, &block, lineno, None, span, blocktext);
-        (vec![target.into()], blank_finish)
+        Ok((vec![target.into()], blank_finish))
     }
 
     /// A target element from the text after its name.
@@ -383,7 +383,7 @@ impl Machine {
             blank_finish,
             |_| {},
         );
-        let mut node = doc.close().unwrap();
+        let mut node = doc.close_detached();
         let children = std::mem::take(&mut node.children);
         for child in children {
             match child {
@@ -434,7 +434,7 @@ impl Machine {
     /// A directive inside a substitution definition.
     pub(crate) fn embedded_directive(&mut self, doc: &mut Document) -> Step {
         let s: Vec<char> = self.text().chars().collect();
-        let (name, end) = patterns::embedded_directive(&s).unwrap();
+        let (name, end) = matched(patterns::embedded_directive(&s))?;
         let alt = doc
             .top()
             .attributes

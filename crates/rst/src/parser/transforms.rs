@@ -108,7 +108,9 @@ fn replace_self(root: &mut Element, key: Key, mut new: Vec<Node>) {
     let Some(path) = path_of(root, key) else {
         return;
     };
-    let (index, parent_path) = path.split_last().unwrap();
+    let Some((index, parent_path)) = path.split_last() else {
+        return;
+    };
     let parent = at_path(root, parent_path);
     let Node::Element(old) = parent.children[*index].clone() else {
         return;
@@ -300,7 +302,9 @@ fn visit_transition(doc: &mut Document, root: &mut Element, key: Key) {
     let Some(path) = path_of(root, key) else {
         return;
     };
-    let (&index, parent_path) = path.split_last().unwrap();
+    let Some((&index, parent_path)) = path.split_last() else {
+        return;
+    };
     let parent = at_path(root, parent_path).clone();
     if !matches!(parent.kind, Kind::Document | Kind::Section) {
         warn_transition(
@@ -369,7 +373,9 @@ fn warn_transition(doc: &mut Document, root: &mut Element, key: Key, text: &str)
         _ => None,
     };
     let warning = doc.message(WARNING, text, Vec::new(), At::node(line));
-    let (&index, parent_path) = path.split_last().unwrap();
+    let Some((&index, parent_path)) = path.split_last() else {
+        return;
+    };
     let parent = at_path(root, parent_path);
     if matches!(
         parent.kind,
@@ -423,7 +429,9 @@ fn substitutions(doc: &mut Document, root: &mut Element) {
         let Some(path) = path_of(root, key) else {
             continue;
         };
-        let (&index, parent_path) = path.split_last().unwrap();
+        let Some((&index, parent_path)) = path.split_last() else {
+            continue;
+        };
         {
             let parent = at_path(root, parent_path);
             let trim = |a: &str| has(&def, a) || has(&def, "trim");
@@ -525,7 +533,9 @@ fn propagate_targets(doc: &mut Document, root: &mut Element) {
         let Some(path) = path_of(root, key) else {
             continue;
         };
-        let (&index, parent_path) = path.split_last().unwrap();
+        let Some((&index, parent_path)) = path.split_last() else {
+            continue;
+        };
         let parent_kind = at_path(root, parent_path).kind.clone();
         let target = at_path(root, &path).clone();
         if is_text_element(&parent_kind)
@@ -563,7 +573,9 @@ fn propagate_targets(doc: &mut Document, root: &mut Element) {
         let Some(next_path) = next else {
             continue;
         };
-        let (&ni, np) = next_path.split_last().unwrap();
+        let Some((&ni, np)) = next_path.split_last() else {
+            continue;
+        };
         let next_kind = match &at_path(root, np).children[ni] {
             Node::Element(e) => e.kind.clone(),
             Node::Text(_) => continue,

@@ -327,7 +327,9 @@ impl TargetNotes {
                     .with_child(Text::new(" ", None))
                     .into()
             };
-            let (&index, parent_path) = path.split_last().unwrap();
+            let Some((&index, parent_path)) = path.split_last() else {
+                continue;
+            };
             let parent = at_path(root, parent_path);
             parent
                 .children

@@ -986,7 +986,7 @@ impl Machine {
         }
         doc.close();
         doc.close();
-        doc.close().unwrap()
+        doc.close_detached()
     }
 
     fn build_table_row(&mut self, doc: &mut Document, row: Row, tableline: isize) {

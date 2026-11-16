@@ -99,7 +99,9 @@ enum K {
     Interpreted,
     Reference,
     Anonymous,
-    Footnote,
+    /// A footnote or citation reference: the label's start and end, and
+    /// whether it is a citation.
+    Footnote(usize, usize, bool),
 }
 
 /// A match of docutils' `initial` pattern. Offsets are in characters of
@@ -113,8 +115,6 @@ struct Start {
     group: (usize, usize),
     /// The role prefix, colons included.
     role: Option<(usize, usize)>,
-    /// A footnote or citation label, and whether it is a citation.
-    label: Option<(usize, usize, bool)>,
 }
 
 /// An end-string match.
@@ -167,7 +167,6 @@ fn initial_at(s: &[char], i: usize) -> Option<Start> {
         start: i,
         group: (i, i + len),
         role: None,
-        label: None,
     };
     // Simple start-strings, followed by non-whitespace.
     let starts: [(bool, K, usize); 5] = [
@@ -211,11 +210,10 @@ fn initial_at(s: &[char], i: usize) -> Option<Start> {
         for (e, citation) in candidates {
             if at(e, "]_") && end_ok(s, e + 2) {
                 return Some(Start {
-                    kind: K::Footnote,
+                    kind: K::Footnote(q, e, citation),
                     start: i,
                     group: (i, e + 2),
                     role: None,
-                    label: Some((q, e, citation)),
                 });
             }
         }
@@ -233,7 +231,6 @@ fn initial_at(s: &[char], i: usize) -> Option<Start> {
                     start: i,
                     group: (e + 1, e + 2),
                     role: Some((i, e + 1)),
-                    label: None,
                 });
             }
         }
@@ -572,7 +569,7 @@ impl Inliner<'_> {
             K::Interpreted => self.interpreted_or_phrase_ref(s, base, m),
             K::Reference => self.reference(s, base, m, false),
             K::Anonymous => self.reference(s, base, m, true),
-            K::Footnote => self.footnote_reference(s, base, m),
+            K::Footnote(q, e, citation) => self.footnote_reference(s, base, m, (q, e, citation)),
         }
     }
 
@@ -895,8 +892,13 @@ impl Inliner<'_> {
         nodes
     }
 
-    fn footnote_reference(&mut self, s: &[char], base: usize, m: Start) -> Found {
-        let (q, e, citation) = m.label.unwrap();
+    fn footnote_reference(
+        &mut self,
+        s: &[char],
+        base: usize,
+        m: Start,
+        (q, e, citation): (usize, usize, bool),
+    ) -> Found {
         let label = text_of(s, q, e);
         let mut refname = normalize_name(&label);
         let span = self.span(base, m.group.0, m.group.1);
@@ -1007,6 +1009,7 @@ fn join_unprocessed(pieces: &mut Vec<(usize, Vec<char>)>) -> (usize, Vec<char>) 
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use crate::nodes::{Kind, Node, Span};
 
     fn find(e: &crate::Element, kind: &Kind) -> Option<crate::Element> {

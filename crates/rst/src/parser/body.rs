@@ -4,7 +4,7 @@
 
 use super::document::{At, Document, ERROR, INFO, LINE, LINE_INDENT, RAW, WARNING, fixed};
 use super::inline::{Origin, inline_text};
-use super::machine::{Flow, Machine, State, Step, Tr, join, span_of};
+use super::machine::{Flow, Machine, State, Step, Tr, join, matched, span_of};
 use crate::lines::Line;
 use crate::nodes::{AttrValue, Element, Kind, Node, Text};
 use crate::patterns::{self, Format};
@@ -262,7 +262,7 @@ impl Machine {
             };
             doc.open(Element::new(Kind::BlockQuote), false);
             self.nested_parse(doc, quote_lines, offset);
-            let mut quote = doc.close().unwrap();
+            let mut quote = doc.close_detached();
             let Some(split) = rest else {
                 elements.push(quote);
                 break;
@@ -302,15 +302,15 @@ impl Machine {
         if !indented.is_empty() {
             doc.open(item, false);
             self.nested_parse(doc, indented, offset);
-            item = doc.close().unwrap();
+            item = doc.close_detached();
         }
         (item, blank_finish)
     }
 
     /// The first item of a bullet list, and the rest of the list.
     pub(crate) fn bullet(&mut self, doc: &mut Document, state: State) -> Step {
-        let end = patterns::bullet(&chars_of(self.text())).unwrap();
-        let bullet = self.text().chars().next().unwrap().to_string();
+        let end = matched(patterns::bullet(&chars_of(self.text())))?;
+        let bullet: String = self.text().chars().take(1).collect();
         let list = Element::new(Kind::BulletList).with_attr("bullet", bullet);
         doc.open(list, true);
         let (item, blank_finish) = self.list_item(doc, end);
@@ -328,11 +328,11 @@ impl Machine {
 
     /// A later bullet list item.
     pub(crate) fn bullet_list_item(&mut self, doc: &mut Document, state: State) -> Step {
-        let first = self.text().chars().next().unwrap().to_string();
+        let first: String = self.text().chars().take(1).collect();
         if doc.top().attributes.get_str("bullet") != Some(first.as_str()) {
             return self.invalid_input(doc);
         }
-        let end = patterns::bullet(&chars_of(self.text())).unwrap();
+        let end = matched(patterns::bullet(&chars_of(self.text())))?;
         let (item, blank_finish) = self.list_item(doc, end);
         doc.append(item);
         self.blank_finish = blank_finish;
@@ -363,12 +363,14 @@ impl Machine {
 
     /// The first item of an enumerated list, and the rest of the list.
     pub(crate) fn enumerator(&mut self, doc: &mut Document, state: State) -> Step {
-        let e = patterns::enumerator(&chars_of(self.text())).unwrap();
+        let e = matched(patterns::enumerator(&chars_of(self.text())))?;
         let (format, sequence, ordinal) = parse_enumerator(&e, None);
         if !self.is_enumerated_list_item(ordinal, sequence, format) {
             return Err(Flow::TransitionCorrection(Tr::Text));
         }
-        let ordinal = ordinal.unwrap();
+        let Some(ordinal) = ordinal else {
+            return Err(Flow::TransitionCorrection(Tr::Text));
+        };
         let enumtype = if sequence == "#" { "arabic" } else { sequence };
         let mut list = Element::new(Kind::EnumeratedList)
             .with_attr("enumtype", enumtype)
@@ -410,7 +412,7 @@ impl Machine {
 
     /// A later enumerated list item.
     pub(crate) fn enumerated_list_item(&mut self, doc: &mut Document, state: State) -> Step {
-        let e = patterns::enumerator(&chars_of(self.text())).unwrap();
+        let e = matched(patterns::enumerator(&chars_of(self.text())))?;
         let enumtype = doc
             .top()
             .attributes
@@ -469,7 +471,7 @@ impl Machine {
         } else if !indented.is_empty() {
             doc.open(body, false);
             self.nested_parse(doc, indented, offset);
-            body = doc.close().unwrap();
+            body = doc.close_detached();
         }
         let mut field = Element::new(Kind::Field)
             .with_child(field_name)
@@ -482,7 +484,7 @@ impl Machine {
 
     /// The first field of a field list, and the rest of the list.
     pub(crate) fn field_marker(&mut self, doc: &mut Document, state: State) -> Step {
-        let end = patterns::field_marker(&chars_of(self.text())).unwrap();
+        let end = matched(patterns::field_marker(&chars_of(self.text())))?;
         doc.open(Element::new(Kind::FieldList), true);
         let (field, blank_finish) = self.field(doc, end, false);
         doc.append(field);
@@ -499,7 +501,7 @@ impl Machine {
 
     /// A later field.
     pub(crate) fn field_list_item(&mut self, doc: &mut Document, state: State) -> Step {
-        let end = patterns::field_marker(&chars_of(self.text())).unwrap();
+        let end = matched(patterns::field_marker(&chars_of(self.text())))?;
         let (field, blank_finish) = self.field(doc, end, state == State::ExtensionOptions);
         doc.append(field);
         self.blank_finish = blank_finish;
@@ -531,7 +533,7 @@ impl Machine {
         group.span = self.span(start, start);
         doc.open(Element::new(Kind::Description), false);
         self.nested_parse(doc, indented, line_offset);
-        let description = doc.close().unwrap();
+        let description = doc.close_detached();
         let mut item = Element::new(Kind::OptionListItem)
             .with_child(group)
             .with_child(description);
@@ -541,7 +543,7 @@ impl Machine {
 
     /// The first item of an option list, and the rest of the list.
     pub(crate) fn option_marker(&mut self, doc: &mut Document, state: State) -> Step {
-        let end = patterns::option_marker(&chars_of(self.text())).unwrap();
+        let end = matched(patterns::option_marker(&chars_of(self.text())))?;
         let (item, blank_finish) = match self.option_list_item(doc, end)? {
             Ok(item) => item,
             Err(error) => {
@@ -578,7 +580,7 @@ impl Machine {
 
     /// A later option list item.
     pub(crate) fn option_list_next(&mut self, doc: &mut Document, state: State) -> Step {
-        let end = patterns::option_marker(&chars_of(self.text())).unwrap();
+        let end = matched(patterns::option_marker(&chars_of(self.text())))?;
         match self.option_list_item(doc, end)? {
             Ok((item, blank_finish)) => {
                 doc.append(item);
@@ -600,8 +602,11 @@ impl Machine {
 
     /// One line of a line block, with continuation lines.
     /// Returns the line, its messages, and whether a blank line ended it.
-    fn line_block_line(&mut self, doc: &mut Document) -> (Element, Vec<Element>, bool) {
-        let (end, spaces) = patterns::line_block(&chars_of(self.text())).unwrap();
+    fn line_block_line(
+        &mut self,
+        doc: &mut Document,
+    ) -> Result<(Element, Vec<Element>, bool), Flow> {
+        let (end, spaces) = matched(patterns::line_block(&chars_of(self.text())))?;
         let empty = rstrip(self.text()) == "|";
         let start = self.line_offset;
         let lineno = self.abs_line_number();
@@ -615,7 +620,7 @@ impl Machine {
         if !empty {
             line.attributes.set(LINE_INDENT, spaces as i64 - 1);
         }
-        (line, messages, blank_finish)
+        Ok((line, messages, blank_finish))
     }
 
     /// A line block.
@@ -624,7 +629,7 @@ impl Machine {
         // already is.
         let at = doc.position();
         let lineno = self.abs_line_number();
-        let (line, messages, mut blank_finish) = self.line_block_line(doc);
+        let (line, messages, mut blank_finish) = self.line_block_line(doc)?;
         doc.open_at(Element::new(Kind::LineBlock), at);
         doc.append(line);
         for msg in messages {
@@ -668,7 +673,7 @@ impl Machine {
 
     /// A later line of a line block.
     pub(crate) fn line_block_next(&mut self, doc: &mut Document, state: State) -> Step {
-        let (line, messages, blank_finish) = self.line_block_line(doc);
+        let (line, messages, blank_finish) = self.line_block_line(doc)?;
         doc.append(line);
         for msg in messages {
             doc.append_to_grandparent(msg);

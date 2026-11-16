@@ -6,7 +6,7 @@
 
 use std::path::PathBuf;
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let mut args = std::env::args().skip(1);
     let mut out: Option<PathBuf> = None;
     let mut transforms = false;
@@ -30,14 +30,15 @@ fn main() {
         parser = parser.file_loader(lsdocs_rst::DirectoryLoader::new(dir));
     }
     for file in inputs {
-        let text = std::fs::read_to_string(&file).expect("readable UTF-8 file");
+        let text = std::fs::read_to_string(&file)?;
         let tree = parser.parse(&text);
         match &out {
             Some(dir) => {
-                let name = file.file_stem().unwrap().to_string_lossy().into_owned();
-                std::fs::write(dir.join(format!("{name}.pxml")), tree.pformat()).unwrap();
+                let name = file.file_stem().unwrap_or_default().to_string_lossy();
+                std::fs::write(dir.join(format!("{name}.pxml")), tree.pformat())?;
             }
             None => print!("{}", tree.pformat()),
         }
     }
+    Ok(())
 }

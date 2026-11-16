@@ -234,6 +234,7 @@ pub(crate) fn image_width(bytes: &[u8]) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]

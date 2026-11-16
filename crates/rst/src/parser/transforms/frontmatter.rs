@@ -409,16 +409,18 @@ fn authors_from_one_paragraph(body: &Element) -> Option<Vec<Vec<Node>>> {
 
 /// `text` split at `sep`, except where it is escaped.
 fn split_unescaped(text: &str, sep: char) -> Vec<String> {
-    let mut parts = vec![String::new()];
+    let mut parts = Vec::new();
+    let mut part = String::new();
     let mut prev = None;
     for c in text.chars() {
         if c == sep && prev != Some('\0') {
-            parts.push(String::new());
+            parts.push(std::mem::take(&mut part));
         } else {
-            parts.last_mut().unwrap().push(c);
+            part.push(c);
         }
         prev = Some(c);
     }
+    parts.push(part);
     parts
 }
 

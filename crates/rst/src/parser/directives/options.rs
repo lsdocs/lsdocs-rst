@@ -241,7 +241,9 @@ pub(crate) fn class_option(argument: Option<&str>) -> Result<Vec<String>, String
 }
 
 fn format_values(values: &[&str]) -> String {
-    let (last, rest) = values.split_last().expect("choices");
+    let Some((last, rest)) = values.split_last() else {
+        return String::new();
+    };
     let rest: Vec<String> = rest.iter().map(|v| format!("\"{v}\"")).collect();
     format!("{}, or \"{last}\"", rest.join(", "))
 }

@@ -6,6 +6,8 @@
 //! supports them; one that starts matching fails the test too, so the
 //! lists stay accurate.
 
+#![allow(clippy::unwrap_used)]
+
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 

@@ -2,6 +2,8 @@
 //! `csv-table` files). Conformance with docutils is checked by the
 //! `file_*` cases in `tests/conformance.rs`; these test the API.
 
+#![allow(clippy::unwrap_used)]
+
 use std::collections::HashMap;
 use std::io;
 

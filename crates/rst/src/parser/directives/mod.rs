@@ -474,7 +474,7 @@ impl Machine {
         let mut m = Machine::detached(lines, 0);
         m.blank_finish = true;
         m.run(doc, State::ExtensionOptions);
-        let field_list = doc.close().unwrap();
+        let field_list = doc.close_detached();
         if m.abs_line_offset() != count {
             return Err(MarkupError("invalid option block".to_owned()));
         }
