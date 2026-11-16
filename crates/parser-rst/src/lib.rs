@@ -9,7 +9,8 @@
 //! - **Metadata:** a field list at the very top of the file (docutils'
 //!   bibliographic fields) becomes the document's metadata: `author`,
 //!   `date` and the like as strings, `authors` as a list, any other field
-//!   under its name in lower case. A `title` field names the page. `meta` directives go
+//!   under its name in lower case, with `true`, `false` and numbers as
+//!   such (as in YAML front matter). A `title` field names the page. `meta` directives go
 //!   under `meta`.
 //! - **Ids:** labels (`.. _name:`) and `:name:` options become ids (made
 //!   as docutils makes them: `My Label` is `my-label`). A section without

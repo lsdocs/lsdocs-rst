@@ -95,6 +95,12 @@ fn bibliographic_fields_are_metadata() {
     assert_eq!(d.metadata["version"], json!("1.0"));
     assert_eq!(d.title().as_deref(), Some("Custom title"));
     assert_eq!(kinds(&d)[0], "section");
+    // Other fields: booleans and numbers as such.
+    let (d, _) = doc(":nav_order: 3\n:nav_exclude: true\n:weight: 0.5\n:tag: v2\n\nText.\n");
+    assert_eq!(
+        json!(d.metadata),
+        json!({"nav_order": 3, "nav_exclude": true, "weight": 0.5, "tag": "v2"})
+    );
 }
 
 #[test]

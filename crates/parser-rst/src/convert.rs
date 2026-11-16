@@ -777,7 +777,7 @@ impl Cx<'_> {
                     let mut parts = item.elements();
                     if let (Some(name), Some(body)) = (parts.next(), parts.next()) {
                         self.metadata
-                            .insert(name.astext().to_lowercase(), json!(body.astext().trim()));
+                            .insert(name.astext().to_lowercase(), field_value(&body.astext()));
                     }
                     for msg in children_of(item, &Kind::FieldBody)
                         .flat_map(|b| children_of(b, &Kind::SystemMessage))
@@ -929,6 +929,30 @@ impl Cx<'_> {
         };
         vec![node]
     }
+}
+
+/// A field's text as a metadata value: `true` and `false` as booleans,
+/// numbers as numbers, anything else as a string (as in YAML front
+/// matter).
+fn field_value(text: &str) -> Value {
+    let text = text.trim();
+    match text {
+        "true" => return json!(true),
+        "false" => return json!(false),
+        _ => {}
+    }
+    if let Ok(n) = text.parse::<i64>() {
+        return json!(n);
+    }
+    if let Ok(x) = text.parse::<f64>()
+        && x.is_finite()
+        && text
+            .chars()
+            .all(|c| c.is_ascii_digit() || matches!(c, '.' | '-' | '+'))
+    {
+        return json!(x);
+    }
+    json!(text)
 }
 
 /// The lines of a line block, with their nesting levels.
