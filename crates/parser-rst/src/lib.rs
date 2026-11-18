@@ -66,6 +66,7 @@ pub use convert::convert;
 /// The plugin, as registered with the host.
 pub fn plugin() -> Plugin {
     Plugin::new("parser-rst", env!("CARGO_PKG_VERSION"))
+        .settings(|c| lsdocs_plugin_sdk::config::settings_toml_keys(c, &["file_access"]))
         .parser(Rst)
         .cacheable()
 }
@@ -91,7 +92,7 @@ impl Parser for Rst {
             .site()
             .source_dir
             .clone()
-            .filter(|_| file_access(ctx.options()));
+            .filter(|_| file_access(ctx.settings()));
         Ok(parse_with_dependencies(
             &params.source,
             &params.text,
