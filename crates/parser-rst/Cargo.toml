@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 lsdocs-plugin-sdk.workspace = true
-lsdocs-rst.workspace = true
+lsdocs-rst = { workspace = true, features = ["serde"] }
 serde_json.workspace = true
 
 [dev-dependencies]

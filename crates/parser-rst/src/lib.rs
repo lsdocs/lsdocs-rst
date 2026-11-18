@@ -36,25 +36,31 @@
 //! - **Diagnostics:** docutils' warnings and errors become warnings, its
 //!   severe errors errors; info messages are dropped.
 //! - **Files:** `include`, `raw` and `csv-table` read files from the
-//!   source directory (option `file_access`, on by default). The files
-//!   read (or looked for) are the result's dependencies, so a cached
-//!   result is reused only while they are unchanged.
+//!   source directory (docutils' `file_insertion_enabled`, on by
+//!   default). The files read (or looked for) are the result's
+//!   dependencies, so a cached result is reused only while they are
+//!   unchanged.
 //!
-//! Options:
-//!
-//! | Option | Default | Meaning |
-//! |---|---|---|
-//! | `file_access` | `true` | Let directives read files. |
+//! Settings are docutils' own, in `.config/lsdocs/<name>/docutils.conf`
+//! (docutils' INI format; see [`conf`](self) for what is read): the
+//! `[general]`, `[parsers]` and `[restructuredtext parser]` sections'
+//! settings lsdocs-rst implements (`tab_width`, `pep_references`,
+//! `raw_enabled`, ...) and `file_insertion_enabled`. Other sections are
+//! skipped; docutils settings lsdocs-rst does not implement are reported
+//! once, as a warning.
 
+mod conf;
 mod convert;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use lsdocs_plugin_sdk::doctree::Value;
+use lsdocs_plugin_sdk::protocol::ConfigInfo;
 use lsdocs_plugin_sdk::protocol::{
     ArgumentSyntax, ContentSyntax, DirectiveSyntax, OptionSyntax, ParseParams, ParseResult, Syntax,
 };
-use lsdocs_plugin_sdk::{Context, Parser, Plugin, PluginResult};
+use lsdocs_plugin_sdk::{Context, Parser, Plugin, PluginResult, config};
 use lsdocs_rst::nodes::{Element, Kind, Node, Text};
 use lsdocs_rst::{
     Directive, DirectiveContext, DirectiveError, DirectiveSpec, OptionKind, OptionValue, Role,
@@ -66,20 +72,50 @@ pub use convert::convert;
 /// The plugin, as registered with the host.
 pub fn plugin() -> Plugin {
     Plugin::new("parser-rst", env!("CARGO_PKG_VERSION"))
-        .settings(|c| lsdocs_plugin_sdk::config::settings_toml_keys(c, &["file_access"]))
-        .parser(Rst)
+        .settings(load)
+        .parser(Rst::default())
         .cacheable()
 }
 
-/// The reStructuredText parser.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Rst;
+/// Reads `.config/lsdocs/<name>/docutils.conf` (missing: docutils'
+/// defaults).
+fn load(config: &ConfigInfo) -> Result<config::Loaded, String> {
+    let relative = config::recommended(config, "docutils.conf");
+    let path = std::path::Path::new(&config.dir).join(&relative);
+    let parsed = match std::fs::read_to_string(&path) {
+        Ok(text) => conf::read(&text, &path.display().to_string())?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => conf::Conf::default(),
+        Err(e) => return Err(format!("cannot read {}: {e}", path.display())),
+    };
+    Ok(config::Loaded {
+        settings: serde_json::json!({
+            "settings": serde_json::to_value(&parsed.settings).map_err(|e| e.to_string())?,
+            "file_insertion_enabled": parsed.file_insertion_enabled,
+            "warnings": parsed.warnings,
+        }),
+        files: vec![relative],
+    })
+}
 
-fn file_access(options: &Value) -> bool {
-    options
-        .get("file_access")
+/// The reStructuredText parser.
+#[derive(Debug, Clone, Default)]
+pub struct Rst {
+    /// Whether the settings' warnings were reported (once a session).
+    warned: Arc<AtomicBool>,
+}
+
+/// The docutils settings and `file_insertion_enabled` from the plugin's
+/// settings (as [`load`] read them).
+fn configured(settings: &Value) -> (lsdocs_rst::Settings, bool) {
+    let rst = settings
+        .get("settings")
+        .and_then(|s| serde_json::from_value(s.clone()).ok())
+        .unwrap_or_default();
+    let files = settings
+        .get("file_insertion_enabled")
         .and_then(Value::as_bool)
-        .unwrap_or(true)
+        .unwrap_or(true);
+    (rst, files)
 }
 
 impl Parser for Rst {
@@ -88,16 +124,21 @@ impl Parser for Rst {
     }
 
     async fn parse(&self, params: ParseParams, ctx: &Context) -> PluginResult<ParseResult> {
-        let source_dir = ctx
-            .site()
-            .source_dir
-            .clone()
-            .filter(|_| file_access(ctx.settings()));
-        Ok(parse_with_dependencies(
+        if !self.warned.swap(true, Ordering::Relaxed)
+            && let Some(Value::Array(warnings)) = ctx.settings().get("warnings")
+        {
+            for warning in warnings.iter().filter_map(Value::as_str) {
+                ctx.warn(warning).await;
+            }
+        }
+        let (settings, files) = configured(ctx.settings());
+        let source_dir = ctx.site().source_dir.clone().filter(|_| files);
+        Ok(parse_configured(
             &params.source,
             &params.text,
             source_dir.as_deref(),
             &params.syntax,
+            settings,
         ))
     }
 }
@@ -106,7 +147,13 @@ impl Parser for Rst {
 /// the document title, unknown directives kept, and the directives and
 /// roles of `syntax`; with `source_dir`, files are read from it.
 pub fn rst_parser(source: &str, source_dir: Option<&str>, syntax: &Syntax) -> lsdocs_rst::Parser {
-    rst_parser_recording(source, source_dir, syntax, None)
+    rst_parser_recording(
+        source,
+        source_dir,
+        syntax,
+        None,
+        lsdocs_rst::Settings::default(),
+    )
 }
 
 /// [`rst_parser`], noting every file directives read (or look for) in
@@ -116,8 +163,10 @@ fn rst_parser_recording(
     source_dir: Option<&str>,
     syntax: &Syntax,
     read: Option<Arc<Mutex<Vec<String>>>>,
+    settings: lsdocs_rst::Settings,
 ) -> lsdocs_rst::Parser {
     let mut parser = lsdocs_rst::Parser::new()
+        .settings(settings)
         .source(source)
         .transforms(true)
         .doctitle(false)
@@ -167,9 +216,27 @@ pub fn parse_with_dependencies(
     source_dir: Option<&str>,
     syntax: &Syntax,
 ) -> ParseResult {
+    parse_configured(
+        source,
+        text,
+        source_dir,
+        syntax,
+        lsdocs_rst::Settings::default(),
+    )
+}
+
+/// [`parse_with_dependencies`] with docutils settings.
+fn parse_configured(
+    source: &str,
+    text: &str,
+    source_dir: Option<&str>,
+    syntax: &Syntax,
+    settings: lsdocs_rst::Settings,
+) -> ParseResult {
     let read = Arc::new(Mutex::new(Vec::new()));
-    let (tree, messages) = rst_parser_recording(source, source_dir, syntax, Some(read.clone()))
-        .parse_with_messages(text);
+    let (tree, messages) =
+        rst_parser_recording(source, source_dir, syntax, Some(read.clone()), settings)
+            .parse_with_messages(text);
     let (document, diagnostics) = convert(source, text, &tree, &messages);
     let mut dependencies =
         std::mem::take(&mut *read.lock().unwrap_or_else(PoisonError::into_inner));

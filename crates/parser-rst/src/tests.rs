@@ -283,3 +283,41 @@ fn includes_read_from_the_source_directory() {
     let (_, diagnostics) = doc(".. include:: part.txt\n");
     assert_eq!(diagnostics[0].message, "\"include\" directive disabled.");
 }
+
+#[tokio::test]
+async fn docutils_conf_settings_apply() {
+    use lsdocs_plugin_sdk::Parser as _;
+    let dir = std::env::temp_dir().join(format!("lsdocs-rst-conf-{}", std::process::id()));
+    let conf = dir.join("lsdocs/rst/docutils.conf");
+    std::fs::create_dir_all(conf.parent().unwrap()).unwrap();
+    std::fs::write(
+        &conf,
+        "[general]\nsmart_quotes: yes\n[restructuredtext parser]\npep_references: yes\n",
+    )
+    .unwrap();
+    let params = lsdocs_plugin_sdk::protocol::InitializeParams {
+        config: lsdocs_plugin_sdk::protocol::ConfigInfo {
+            dir: dir.to_string_lossy().into_owned(),
+            name: "rst".into(),
+        },
+        ..Default::default()
+    };
+    let plugin = crate::plugin();
+    let setup = plugin.setup(&params).unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(setup.config_files, ["lsdocs/rst/docutils.conf"]);
+    let ctx = lsdocs_plugin_sdk::testing::context(&setup);
+    let result = crate::Rst::default()
+        .parse(
+            lsdocs_plugin_sdk::protocol::ParseParams {
+                source: "a.rst".into(),
+                text: "See PEP 8.\n".into(),
+                syntax: Default::default(),
+            },
+            &ctx,
+        )
+        .await
+        .unwrap();
+    let json = serde_json::to_string(&result.document).unwrap();
+    assert!(json.contains("pep-0008"), "{json}");
+}
