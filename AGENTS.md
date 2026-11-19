@@ -43,3 +43,43 @@ shows them. `nur ci` runs what CI runs: run it before committing. Tools:
 - Licensing: `Apache-2.0 OR MIT`. Nothing is published.
 - Record what is left open in README.md's TODO section, and what the code
   does not do (or does differently) under Known limitations.
+
+## This repository
+
+| Path | What |
+|---|---|
+| `crates/rst` | `lsdocs-rst`: standalone reStructuredText parser (docutils port). Depends on nothing of lsdocs; keep it that way. |
+| `crates/parser-rst` | `lsdocs-parser-rst`: the lsdocs plugin on it. |
+| `bindings/python`, `bindings/node` | `lsdocs-rst` for Python and Node.js; their tests run the conformance cases. |
+| `scripts/rst-*.py` | The docutils bridges behind `nur gen rst` and `nur fuzz rst`. |
+
+Tasks: `nur test python`, `nur test node`, `nur gen node`; `nur gen rst`
+regenerates the expected trees of the conformance cases and
+`crates/rst/src/tables.rs` with docutils (via uv; versions `DOCUTILS` and
+`PILLOW` in the nurfile); `nur fuzz rst [--count N] [--seed N]
+[--transforms]` compares with docutils on random documents (mismatches go
+to `target/rst-fuzz`).
+
+### Generated files
+
+Never hand-edit these; regenerate and review the diff.
+
+- `crates/rst/tests/cases/*.pxml`, `*.tpxml` and `*.xml`: `nur gen rst`
+  after adding or changing a `.rst` case (the parser's tree, the tree after
+  docutils' transforms, and that tree through docutils' XML writer). A
+  case's `<name>.settings.json` (hand-written) holds docutils settings for
+  it. Cases named `file_*` may read files (from `cases/files/`; included
+  files there end in `.txt`). Cases that cannot match yet go in
+  `cases/PENDING` or `cases/PENDING-TRANSFORMS`.
+- `crates/rst/src/tables.rs`: also `nur gen rst`.
+- `bindings/node/native.js`, `native.d.ts`: `nur gen node`.
+
+### Bindings
+
+They carry trees as the `serde` form of `lsdocs-rst` and keep the
+parser's behavior in Rust; a Python directive runs on a scoped worker
+thread that asks the parsing thread for parses (see
+`bindings/python/src/lib.rs`); in Node.js the parser runs on a worker
+thread that asks the JS thread to run JS extensions (see
+`bindings/node/src/lib.rs`). A uv workspace is rooted at
+`pyproject.toml`.

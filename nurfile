@@ -81,11 +81,66 @@ def "nur bump" [crate?: string] {
     if $crate == null { cargo-org update } else { cargo-org update -p $crate }
 }
 
+# docutils version the reStructuredText conformance cases are checked
+# against.
+const DOCUTILS = "0.23"
+
+# Pillow version for the conformance cases (docutils reads image sizes
+# with it).
+const PILLOW = "13.0.0"
+
+# Regenerate the expected trees (`.pxml`, `.tpxml`) of the
+# reStructuredText conformance cases in crates/rst/tests/cases, and the
+# inline markup character tables (crates/rst/src/tables.rs), with docutils
+# (needs uv).
+def "nur gen rst" [] {
+    uv run --no-project --quiet --with $"docutils==($DOCUTILS)" --with $"pillow==($PILLOW)" python scripts/rst-pseudoxml.py crates/rst/tests/cases
+    uv run --no-project --quiet --with $"docutils==($DOCUTILS)" python scripts/rst-tables.py crates/rst/src/tables.rs
+}
+
+# Compare lsdocs-rst with docutils on random block-level documents (needs
+# uv). Mismatches are written to target/rst-fuzz.
+def "nur fuzz rst" [
+    --count: int = 1000  # Documents to generate
+    --seed: int = 0      # Random seed
+    --transforms         # Compare transformed trees
+] {
+    cargo-org build --quiet --package lsdocs-rst --example pformat
+    let exe = if $nu.os-info.name == "windows" { "pformat.exe" } else { "pformat" }
+    let target = ($env.CARGO_TARGET_DIR? | default "target")
+    let binary = ($target | path join "debug" "examples" $exe | path expand)
+    (uv run --no-project --quiet --with $"docutils==($DOCUTILS)" python scripts/rst-fuzz.py
+        $binary ($target | path join "rst-fuzz" | path expand) --count $count --seed $seed
+        ...(if $transforms { [--transforms] } else { [] }))
+}
+
+# Build examples/sample-site into examples/sample-site/site.
+
+# Builds the Python package (lsdocs-rst) and runs its tests (needs uv).
+def "nur test python" [] {
+    use scripts/bindings.nu
+    bindings test-python {}
+}
+
+# Builds the Node.js package (@lsdocs/rst) and runs its tests.
+def "nur test node" [] {
+    use scripts/bindings.nu
+    bindings test-node lsdocs-rst-node lsdocs_rst_node lsdocs-rst {}
+}
+
+# Regenerates bindings/node/native.{js,d.ts} after changing its #[napi] API.
+def "nur gen node" [] {
+    use scripts/bindings.nu
+    bindings gen-node
+}
+
 # What CI runs.
 def "nur ci" [] {
     nur fmt --check
     nur lint
     nur test
+    nur test python
+    nur test node
     nur check-dupes
     nur check-git-deps
 }

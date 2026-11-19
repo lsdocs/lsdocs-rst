@@ -2,7 +2,7 @@
 
 The lsdocs plugin parsing reStructuredText, on `lsdocs-rst` (a port of
 docutils' parser and transforms). What it does and its settings are in
-the lsdocs documentation (`docs/content/plugins/index.md`, "parser-rst").
+the lsdocs documentation (https://lsdocs.github.io, "parser-rst").
 
 ## Settings
 

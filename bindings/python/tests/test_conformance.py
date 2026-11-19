@@ -9,7 +9,7 @@ import pytest
 
 import lsdocs_rst
 
-CASES = Path(__file__).resolve().parents[4] / "crates" / "rst" / "tests" / "cases"
+CASES = Path(__file__).resolve().parents[3] / "crates" / "rst" / "tests" / "cases"
 
 
 def pending(name: str) -> set[str]:

@@ -11,7 +11,7 @@ const path = require('node:path')
 
 const rst = require('..')
 
-const CASES = path.resolve(__dirname, '../../../../crates/rst/tests/cases')
+const CASES = path.resolve(__dirname, '../../../crates/rst/tests/cases')
 
 /** @param {string} name */
 function pending(name) {

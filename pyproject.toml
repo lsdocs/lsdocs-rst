@@ -1,0 +1,19 @@
+# Python tooling for this repository; never built or published. A uv
+# workspace: `uv sync` at the root installs the member (editable) into one
+# venv, from one lockfile (uv.lock).
+[project]
+name = "lsdocs-rst-workspace"
+version = "0.0.0"
+description = "Python dev environment for lsdocs-rst (not published)."
+requires-python = ">=3.11"
+classifiers = ["Private :: Do Not Upload"]
+dependencies = ["lsdocs-rst"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["bindings/python"]
+
+[tool.uv.sources]
+lsdocs-rst = { workspace = true }
