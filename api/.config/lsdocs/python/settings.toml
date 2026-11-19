@@ -1,0 +1,3 @@
+paths = ["../bindings/python/python/lsdocs_rst"]
+primary = true
+output = "python"

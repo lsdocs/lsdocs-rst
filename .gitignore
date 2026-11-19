@@ -12,3 +12,5 @@ __pycache__/
 .lsdocs-cache/
 /site/
 /bindings/node/*.node
+/api/site/
+/api/.lsdocs-cache/

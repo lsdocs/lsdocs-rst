@@ -1,0 +1,48 @@
+# lsdocs-rst's API pages, built by `nur api` into api/site.
+
+[site]
+title = "lsdocs-rst API"
+
+[build]
+source_dir = "content"
+
+[[plugins]]
+name = "markdown"
+builtin = "parser-markdown"
+
+# Python docstrings are reStructuredText, with Sphinx's roles.
+[[plugins]]
+name = "rst"
+builtin = "parser-rst"
+
+[[plugins]]
+name = "sphinx"
+builtin = "sphinx-addons"
+
+[[plugins]]
+name = "python"
+builtin = "apidoc-python"
+
+[[plugins]]
+name = "typescript"
+builtin = "apidoc-typescript"
+
+[[plugins]]
+name = "toc"
+builtin = "transform-toc"
+
+[[plugins]]
+name = "links"
+builtin = "transform-links"
+
+[[plugins]]
+name = "nav"
+builtin = "transform-nav"
+
+[[plugins]]
+name = "highlight"
+builtin = "transform-highlight"
+
+[[plugins]]
+name = "html"
+builtin = "render-html"

@@ -134,6 +134,24 @@ def "nur gen node" [] {
     bindings gen-node
 }
 
+# Builds this repository's API pages (api/) into api/site with lsdocs
+# (LSDOCS_BIN, or installed from git), failing on any warning. Published
+# on GitHub Pages by .github/workflows/pages.yml.
+def "nur api" [] {
+    let lsdocs = if ($env | get -o LSDOCS_BIN | default "") != "" { $env.LSDOCS_BIN } else {
+        let root = $env.PWD | path join target lsdocs-bin
+        with-env (org org-env) { cargo install --quiet --git $"($org.ORG_URL)/lsdocs" --root $root lsdocs }
+        $root | path join bin (if $nu.os-info.name == "windows" { "lsdocs.exe" } else { "lsdocs" })
+    }
+    let result = with-env ((org org-env) | insert LSDOCS_LOG "") {
+        ^$lsdocs build --no-cache --config api/lsdocs.toml | complete
+    }
+    if $result.exit_code != 0 or ($result.stderr | str contains "warning") or ($result.stderr | str contains "error") {
+        error make --unspanned {msg: $"the API site should build cleanly:\n($result.stderr)"}
+    }
+    print "built api/site"
+}
+
 # What CI runs.
 def "nur ci" [] {
     nur fmt --check

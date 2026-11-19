@@ -1,0 +1,2 @@
+paths = [{ path = "../bindings/node/index.d.ts", module = "@lsdocs/rst" }]
+output = "typescript"
