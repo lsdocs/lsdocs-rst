@@ -91,10 +91,18 @@ jobs:
         with:
           node-version: "26"
           package-manager-cache: false
+      # npm trusted publishing needs each package to exist already: for
+      # the first release, an npm token in the `release` environment's
+      # NPM_TOKEN secret is used instead (delete it afterwards; see
+      # lsdocs/.github's docs/releasing.md).
       - name: Publish, platform packages first
         env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           MAIN: packages/lsdocs-rst-${{ needs.node-version.outputs.version }}.tgz
         run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            npm config set "//registry.npmjs.org/:_authToken" "$NPM_TOKEN"
+          fi
           for pkg in packages/*.tgz; do
             [ "$pkg" = "$MAIN" ] || npm publish --provenance --access public "$pkg"
           done
