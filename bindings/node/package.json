@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "A fast reStructuredText parser building docutils' document tree.",
   "license": "Apache-2.0 OR MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lsdocs/lsdocs-rst.git",
+    "directory": "bindings/node"
+  },
   "main": "index.js",
   "types": "index.d.ts",
   "exports": {

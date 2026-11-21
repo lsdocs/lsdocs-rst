@@ -52,7 +52,8 @@ jobs:
           mise_toml: |
             [tools]
             uv = "0.13.9"
-      - run: uv publish --trusted-publishing always dist/*
+      # --check-url: files already on PyPI are skipped (safe to re-run).
+      - run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/ dist/*
 
   node-version:
     if: startsWith(github.ref_name, 'lsdocs-rst-node/v')
@@ -103,7 +104,17 @@ jobs:
           if [ -n "$NPM_TOKEN" ]; then
             npm config set "//registry.npmjs.org/:_authToken" "$NPM_TOKEN"
           fi
+          # A package whose version is already on npm is skipped (safe to
+          # re-run after a partial failure).
+          publish() {
+            spec=$(tar -xOzf "$1" package/package.json | node -p 'const p = JSON.parse(require("fs").readFileSync(0, "utf8")); `${p.name}@${p.version}`')
+            if npm view "$spec" version >/dev/null 2>&1; then
+              echo "$spec is already published"
+            else
+              npm publish --provenance --access public "$1"
+            fi
+          }
           for pkg in packages/*.tgz; do
-            [ "$pkg" = "$MAIN" ] || npm publish --provenance --access public "$pkg"
+            [ "$pkg" = "$MAIN" ] || publish "$pkg"
           done
-          npm publish --provenance --access public "$MAIN"
+          publish "$MAIN"
