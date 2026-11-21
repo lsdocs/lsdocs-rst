@@ -8,7 +8,7 @@ name = "lsdocs-rst"
 dynamic = ["version"]
 description = "A fast reStructuredText parser building docutils' document tree."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "Apache-2.0 OR MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
