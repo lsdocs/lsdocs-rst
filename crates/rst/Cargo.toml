@@ -1,11 +1,11 @@
 [package]
 name = "lsdocs-rst"
 description = "A reStructuredText parser producing a docutils-style document tree with source spans."
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-publish.workspace = true
+repository.workspace = true
 keywords = ["restructuredtext", "rst", "docutils", "parser"]
 categories = ["parser-implementations", "text-processing"]
 readme = "README.md"
