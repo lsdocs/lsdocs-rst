@@ -3,4 +3,7 @@
 [tools]
 "cargo:nur" = "0.32.0"
 uv = "0.13.9"
-node = "26"
+
+[settings]
+# Node.js and Python from the version files at the root.
+idiomatic_version_file_enable_tools = ["node", "python"]
