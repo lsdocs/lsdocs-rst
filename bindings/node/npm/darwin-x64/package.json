@@ -1,0 +1,24 @@
+{
+  "name": "@lsdocs/rst-darwin-x64",
+  "version": "0.1.0",
+  "cpu": [
+    "x64"
+  ],
+  "main": "lsdocs-rst.darwin-x64.node",
+  "files": [
+    "lsdocs-rst.darwin-x64.node"
+  ],
+  "description": "A fast reStructuredText parser building docutils' document tree.",
+  "license": "Apache-2.0 OR MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lsdocs/lsdocs-rst.git",
+    "directory": "bindings/node"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "darwin"
+  ]
+}
