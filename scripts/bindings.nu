@@ -3,18 +3,18 @@
 
 use org.nu
 
-# Environment for running Node.js through fnm when `node` is not already on
-# PATH (mise usually puts it there).
+# Environment for running Node.js from mise (.node-version) when `node` is
+# not already on PATH (an activated mise puts it there). Only PATH: mise's
+# other variables (a global RUSTUP_TOOLCHAIN, say) would override the
+# repository's own.
 export def node-env []: nothing -> record {
     if (which node | is-not-empty) { return {} }
-    let fnm = which fnm | get -o 0.path | default ($nu.home-dir | path join .local share fnm fnm)
-    if not ($fnm | path exists) and (which fnm | is-empty) {
-        error make --unspanned {msg: "Node.js not found: `mise install`, or install fnm"}
+    if (which mise | is-empty) {
+        error make --unspanned {msg: "Node.js not found: install mise, then run `mise install`"}
     }
-    let vars = ^$fnm env --json | from json
-    let bin = if $nu.os-info.name == "windows" { $vars.FNM_MULTISHELL_PATH } else { $vars.FNM_MULTISHELL_PATH | path join bin }
-    # Joined explicitly: nur does not convert list-valued PATH for children.
-    $vars | insert PATH ($env.PATH | prepend $bin | str join (char esep))
+    ^mise install --quiet node
+    # A string: nur does not convert list-valued PATH for children.
+    {PATH: (^mise env --json | from json | get PATH)}
 }
 
 # An addon's file name, as napi's generated loader (native.js) expects.
