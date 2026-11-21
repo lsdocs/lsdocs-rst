@@ -1,0 +1,19 @@
+{
+  "name": "@lsdocs/rst-win32-arm64-msvc",
+  "version": "0.1.0",
+  "cpu": [
+    "arm64"
+  ],
+  "main": "lsdocs-rst.win32-arm64-msvc.node",
+  "files": [
+    "lsdocs-rst.win32-arm64-msvc.node"
+  ],
+  "description": "A fast reStructuredText parser building docutils' document tree.",
+  "license": "Apache-2.0 OR MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "win32"
+  ]
+}
