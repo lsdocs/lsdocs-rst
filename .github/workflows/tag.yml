@@ -115,7 +115,9 @@ jobs:
             if npm view "$spec" version >/dev/null 2>&1; then
               echo "$spec is already published"
             else
-              "${cmd[@]}" "$1"
+              # ./: `npm stage publish` reads `packages/x.tgz` as a GitHub
+              # owner/repo, not a file.
+              "${cmd[@]}" "./$1"
             fi
           }
           for pkg in packages/*.tgz; do
