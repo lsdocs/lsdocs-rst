@@ -9,7 +9,7 @@ release_always = false
 changelog_update = true
 # The release PR opens as a draft (release-plz updates it on every push
 # to main). Marking it ready for review runs the release builds as a
-# dry run (ci.yml); then merge it to release.
+# dry run (release-check.yml); then merge it to release.
 pr_draft = true
 
 # lsdocs-rst's bindings always have its version (bumped with it).
