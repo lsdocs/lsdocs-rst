@@ -3,24 +3,79 @@ name: CI
 on:
   push:
     branches: [main]
+    # Files that cannot change a build.
+    paths-ignore: &no-build
+      - "*.md"
+      - "**/CHANGELOG.md"
+      - "LICENSE*"
+      - renovate.json
+      - .gitignore
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore: *no-build
 
 permissions: {}
 
+# A new push to a pull request cancels its previous run; runs on main finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ci:
+    if: github.event.action != 'ready_for_review'
     uses: lsdocs/.github/.github/workflows/ci.yml@main
     permissions:
       contents: read
 
   # Each crate on its own rust-version (nur msrv installs the toolchains).
   msrv:
+    if: github.event.action != 'ready_for_review'
     uses: lsdocs/.github/.github/workflows/msrv.yml@main
     permissions:
       contents: read
 
-  deny:
-    uses: lsdocs/.github/.github/workflows/deny.yml@main
+  # The release PR, once marked ready for review: a dry run of tag.yml's
+  # builds, every target. Its artifacts are not used.
+  wheels:
+    if: >-
+      github.event_name == 'pull_request'
+      && startsWith(github.head_ref, 'release-plz-')
+      && !github.event.pull_request.draft
+    uses: lsdocs/.github/.github/workflows/build-wheels.yml@main
     permissions:
       contents: read
+    with:
+      working-directory: bindings/python
+
+  # The version the npm packages get: lsdocs-rst-node's (the tag's, at release).
+  node-version:
+    if: >-
+      github.event_name == 'pull_request'
+      && startsWith(github.head_ref, 'release-plz-')
+      && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: bindings/node/Cargo.toml
+          sparse-checkout-cone-mode: false
+      - id: version
+        run: >-
+          echo "version=$(sed -n 's/^version = "\(.*\)"/\1/p'
+          bindings/node/Cargo.toml)" >> "$GITHUB_OUTPUT"
+
+  npm:
+    needs: node-version
+    uses: lsdocs/.github/.github/workflows/build-npm.yml@main
+    permissions:
+      contents: read
+    with:
+      working-directory: bindings/node
+      version: ${{ needs.node-version.outputs.version }}
