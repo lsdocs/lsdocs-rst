@@ -37,7 +37,6 @@ wheels = [
 
 [[package]]
 name = "lsdocs-rst"
-version = "0.1.0"
 source = { editable = "bindings/python" }
 
 [package.optional-dependencies]

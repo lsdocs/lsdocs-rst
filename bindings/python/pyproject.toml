@@ -4,10 +4,11 @@ build-backend = "maturin"
 
 [project]
 name = "lsdocs-rst"
-version = "0.1.0"
+# The version is the binding crate's (Cargo.toml), which release-plz bumps.
+dynamic = ["version"]
 description = "A fast reStructuredText parser building docutils' document tree."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "Apache-2.0 OR MIT"
 classifiers = [
     "Programming Language :: Python :: 3",

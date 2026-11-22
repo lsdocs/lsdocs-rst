@@ -1,0 +1,73 @@
+name: Release check
+
+# The release PR (release-plz's, a draft until marked ready for review): a
+# dry run of the release once it is ready, and again on each update. Not in
+# ci.yml: its path filter skips a release PR that changes only changelogs.
+# On other pull requests every job is skipped.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The release PR, once marked ready for review: a dry run of the release.
+  # The crates, packaged and verify-built as crates.io would get them
+  # (fails until the upstream crates they need are published).
+  crates:
+    if: >-
+      github.event_name == 'pull_request'
+      && startsWith(github.head_ref, 'release-plz-')
+      && !github.event.pull_request.draft
+    uses: lsdocs/.github/.github/workflows/check-crates.yml@main
+    permissions:
+      contents: read
+
+  # tag.yml's builds, every target, with their dist checks (artifacts
+  # unused).
+  wheels:
+    if: >-
+      github.event_name == 'pull_request'
+      && startsWith(github.head_ref, 'release-plz-')
+      && !github.event.pull_request.draft
+    uses: lsdocs/.github/.github/workflows/build-wheels.yml@main
+    permissions:
+      contents: read
+    with:
+      working-directory: bindings/python
+
+  # The version the npm packages get: lsdocs-rst-node's (the tag's, at release).
+  node-version:
+    if: >-
+      github.event_name == 'pull_request'
+      && startsWith(github.head_ref, 'release-plz-')
+      && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: bindings/node/Cargo.toml
+          sparse-checkout-cone-mode: false
+      - id: version
+        run: >-
+          echo "version=$(sed -n 's/^version = "\(.*\)"/\1/p'
+          bindings/node/Cargo.toml)" >> "$GITHUB_OUTPUT"
+
+  npm:
+    needs: node-version
+    uses: lsdocs/.github/.github/workflows/build-npm.yml@main
+    permissions:
+      contents: read
+    with:
+      working-directory: bindings/node
+      version: ${{ needs.node-version.outputs.version }}

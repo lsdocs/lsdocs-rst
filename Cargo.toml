@@ -6,14 +6,12 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
 edition = "2024"
 # The base MSRV; crates needing more set their own (`nur msrv` checks
 # each crate on its own).
 rust-version = "1.89"
 license = "Apache-2.0 OR MIT"
-# Nothing is published until package names are checked on crates.io.
-publish = false
+repository = "https://github.com/lsdocs/lsdocs-rst"
 
 [workspace.dependencies]
 lsdocs-plugin-sdk = { git = "https://github.com/lsdocs/lsdocs-plugin-sdk", branch = "main", version = "0.1.0" }
@@ -22,7 +20,9 @@ lsdocs-rst = { path = "crates/rst", version = "0.1.0" }
 napi = { version = "3.16.2", features = ["tokio_rt"] }
 napi-build = "2.6.0"
 napi-derive = "3.7.1"
-pyo3 = { version = "0.30.1", features = ["abi3-py310", "generate-import-lib"] }
+# The stable ABI (abi3-py311 or abi3t-py315) is chosen per wheel build
+# (lsdocs/.github's build-wheels.yml, `--features pyo3/<abi>`).
+pyo3 = { version = "0.30.1", features = ["generate-import-lib"] }
 pythonize = "0.30.0"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
