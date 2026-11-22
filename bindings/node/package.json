@@ -44,8 +44,11 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@napi-rs/cli": "^3.10.12",
     "@types/node": "^26.6.6",
+    "publint": "^0.3.25",
     "typescript": "^6.0.3"
-  }
+  },
+  "type": "commonjs"
 }
