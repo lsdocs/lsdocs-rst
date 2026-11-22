@@ -48,7 +48,7 @@
     "@napi-rs/cli": "^3.10.12",
     "@types/node": "^26.6.6",
     "publint": "^0.3.25",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.0"
   },
   "type": "commonjs"
 }
