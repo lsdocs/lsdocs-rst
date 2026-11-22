@@ -45,15 +45,11 @@ jobs:
         with:
           name: sdist
           path: dist
-      - uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
+      # Trusted publishing; files already on PyPI are skipped (safe to
+      # re-run).
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
-          # A tag build: no cache (cache poisoning).
-          cache: false
-          mise_toml: |
-            [tools]
-            uv = "0.13.9"
-      # --check-url: files already on PyPI are skipped (safe to re-run).
-      - run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/ dist/*
+          skip-existing: true
 
   node-version:
     if: startsWith(github.ref_name, 'lsdocs-rst-node/v')
