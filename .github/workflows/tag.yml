@@ -83,15 +83,18 @@ jobs:
         with:
           name: npm-packages
           path: packages
-      # npm 11.5 or later, for trusted publishing.
+      # npm 11.15 or later, for trusted publishing and `npm stage`.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "26"
           package-manager-cache: false
-      # npm trusted publishing needs each package to exist already: for
-      # the first release, an npm token in the `release` environment's
-      # NPM_TOKEN secret is used instead (delete it afterwards; see
-      # lsdocs/.github's docs/releasing.md).
+      # npm trusted publishing needs each package to exist already. For the
+      # first release, an npm token (without bypass-2FA) in the `release`
+      # environment's NPM_TOKEN secret stages each package instead: npm
+      # holds it until a maintainer approves it with 2FA (npmjs.com's
+      # Staged Packages tab, or `npm stage approve <id>`). Then set up
+      # trusted publishing and delete the secret; see lsdocs/.github's
+      # docs/releasing.md.
       - name: Publish, platform packages first
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -99,15 +102,20 @@ jobs:
         run: |
           if [ -n "$NPM_TOKEN" ]; then
             npm config set "//registry.npmjs.org/:_authToken" "$NPM_TOKEN"
+            # Staged, without provenance.
+            cmd=(npm stage publish --access public)
+          else
+            cmd=(npm publish --provenance --access public)
           fi
           # A package whose version is already on npm is skipped (safe to
-          # re-run after a partial failure).
+          # re-run after a partial failure; a staged version not yet
+          # approved is not on npm, so reject it before a re-run).
           publish() {
             spec=$(tar -xOzf "$1" package/package.json | node -p 'const p = JSON.parse(require("fs").readFileSync(0, "utf8")); `${p.name}@${p.version}`')
             if npm view "$spec" version >/dev/null 2>&1; then
               echo "$spec is already published"
             else
-              npm publish --provenance --access public "$1"
+              "${cmd[@]}" "$1"
             fi
           }
           for pkg in packages/*.tgz; do
