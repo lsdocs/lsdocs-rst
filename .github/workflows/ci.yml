@@ -36,8 +36,20 @@ jobs:
     permissions:
       contents: read
 
-  # The release PR, once marked ready for review: a dry run of tag.yml's
-  # builds, every target. Its artifacts are not used.
+  # The release PR, once marked ready for review: a dry run of the release.
+  # The crates, packaged and verify-built as crates.io would get them
+  # (fails until the upstream crates they need are published).
+  crates:
+    if: >-
+      github.event_name == 'pull_request'
+      && startsWith(github.head_ref, 'release-plz-')
+      && !github.event.pull_request.draft
+    uses: lsdocs/.github/.github/workflows/check-crates.yml@main
+    permissions:
+      contents: read
+
+  # tag.yml's builds, every target, with their dist checks (artifacts
+  # unused).
   wheels:
     if: >-
       github.event_name == 'pull_request'
