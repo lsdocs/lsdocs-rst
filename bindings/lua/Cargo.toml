@@ -31,6 +31,11 @@ vendored = ["mlua/vendored"]
 # A loadable module for an external interpreter (no Lua linked in).
 module = ["mlua/module"]
 
+# `nur msrv` checks each crate with `--no-default-features`; mlua needs a
+# Lua version.
+[package.metadata.msrv]
+features = ["lua54", "vendored"]
+
 [dependencies]
 lsdocs-rst = { workspace = true, features = ["serde"] }
 mlua = { workspace = true, features = ["serialize"] }
