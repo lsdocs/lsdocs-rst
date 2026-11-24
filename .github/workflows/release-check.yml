@@ -73,13 +73,10 @@ jobs:
       version: ${{ needs.node-version.outputs.version }}
 
   # The version the rockspec gets: lsdocs-rst-lua's (the tag's, at release).
-  # TODO: drop the feat/lua-bindings case (testing build-rocks.yml) before
-  # merging.
   lua-version:
     if: >-
       github.event_name == 'pull_request'
-      && (startsWith(github.head_ref, 'release-plz-')
-      || github.head_ref == 'feat/lua-bindings')
+      && startsWith(github.head_ref, 'release-plz-')
       && !github.event.pull_request.draft
     runs-on: ubuntu-latest
     permissions:
@@ -101,8 +98,7 @@ jobs:
   # can, and the rockspec, linted (artifacts unused).
   rocks:
     needs: lua-version
-    # TODO: back to @main once lsdocs/.github#17 is merged.
-    uses: lsdocs/.github/.github/workflows/build-rocks.yml@feat/lua-bindings
+    uses: lsdocs/.github/.github/workflows/build-rocks.yml@main
     permissions:
       contents: read
     with:
