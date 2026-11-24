@@ -98,7 +98,8 @@ jobs:
   # can, and the rockspec, linted (artifacts unused).
   rocks:
     needs: lua-version
-    uses: lsdocs/.github/.github/workflows/build-rocks.yml@main
+    # TODO: back to @main once lsdocs/.github#17 is merged.
+    uses: lsdocs/.github/.github/workflows/build-rocks.yml@feat/lua-bindings
     permissions:
       contents: read
     with:
