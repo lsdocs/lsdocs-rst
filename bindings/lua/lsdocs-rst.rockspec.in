@@ -1,0 +1,44 @@
+-- The rockspec template: lsdocs/.github's build-rocks.yml writes
+-- lsdocs-rst-<version>-1.rockspec from it, @VERSION@ being the version of
+-- the lsdocs-rst-lua crate.
+--
+-- It builds from source with cargo (luarocks-build-rust-mlua). Installing
+-- the prebuilt modules build-rocks.yml makes instead is not done yet (see
+-- README.md, TODO).
+rockspec_format = "3.0"
+package = "lsdocs-rst"
+version = "@VERSION@-1"
+
+source = {
+  url = "git+https://github.com/lsdocs/lsdocs-rst",
+  tag = "lsdocs-rst-lua/v@VERSION@",
+}
+
+description = {
+  summary = "A fast reStructuredText parser that builds docutils' document tree.",
+  detailed = [[
+A Rust port of docutils' reStructuredText parser and transforms. The tree
+comes back as plain Lua tables, with the source position of every node.
+]],
+  homepage = "https://github.com/lsdocs/lsdocs-rst",
+  license = "Apache-2.0 OR MIT",
+}
+
+-- Lua 5.4 and LuaJIT (5.1 API).
+dependencies = {
+  "lua >= 5.1",
+}
+
+build_dependencies = {
+  "luarocks-build-rust-mlua",
+}
+
+build = {
+  type = "rust-mlua",
+  modules = {
+    -- require("lsdocs_rst") <- the lsdocs_rst_lua library.
+    ["lsdocs_rst"] = "lsdocs_rst_lua",
+  },
+  default_features = false,
+  features = { "module" },
+}

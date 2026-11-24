@@ -11,6 +11,7 @@ reStructuredText for lsdocs and beyond:
 | `crates/parser-rst` | `lsdocs-parser-rst`: the lsdocs plugin parsing reStructuredText with it, settings from `docutils.conf`. |
 | `bindings/python` | `lsdocs-rst` for Python (module `lsdocs_rst`). |
 | `bindings/node` | `@lsdocs/rst` for Node.js. |
+| `bindings/lua` | `lsdocs-rst` for Lua 5.4 and LuaJIT (module `lsdocs_rst`), with mlua. |
 
 The conformance cases (`crates/rst/tests/cases`) are checked against
 docutils (the version `DOCUTILS` in the nurfile pins); the bindings' tests run them
@@ -90,10 +91,21 @@ Items marked `[ ]` under TODO are also limitations until done. The
 ### Bindings
 
 Their known limitations are listed in each package's README
-(`bindings/python/README.md`, `bindings/node/README.md`); keep
+(`bindings/python/README.md`, `bindings/node/README.md`,
+`bindings/lua/README.md`); keep
 those lists current. To fix:
 - [ ] Python: exceptions from extensions are collected per `Parser`, so
       two threads parsing with one `Parser` at once can get each other's
       exception. Collect them per `parse()` call.
 - [ ] Both: extensions can't be async (Node.js) or run on the calling
       thread's context (Python directives run on a worker thread).
+- [ ] Lua: directives, roles and file loaders written in Lua (the Python
+      and Node.js bindings have them). Needs a Lua state reachable from
+      the parser, which wants `Send + Sync` extensions.
+- [ ] Lua: install the prebuilt modules build-rocks.yml makes through the
+      rockspec on luarocks.org (it builds from source with cargo for now),
+      and publish them at release (tag.yml).
+- [ ] Lua: Windows modules (they link the Lua library, so build-rocks.yml
+      needs an MSVC Lua 5.4 and LuaJIT to link to), and LuaJIT specs on
+      Windows (`nur test lua` skips them: mlua's vendored LuaJIT needs an
+      MSVC developer prompt).

@@ -17,6 +17,9 @@ repository = "https://github.com/lsdocs/lsdocs-rst"
 lsdocs-plugin-sdk = { git = "https://github.com/lsdocs/lsdocs-plugin-sdk", branch = "main", version = "0.1.0" }
 lsdocs-rst = { path = "crates/rst", version = "0.1.0" }
 
+# The Lua version (lua54, luajit) and module/vendored are chosen by
+# bindings/lua's features.
+mlua = "0.12.3"
 napi = { version = "3.16.2", features = ["tokio_rt"] }
 napi-build = "2.6.0"
 napi-derive = "3.7.1"

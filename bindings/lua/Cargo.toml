@@ -1,0 +1,38 @@
+[package]
+name = "lsdocs-rst-lua"
+description = "Lua bindings (mlua) for lsdocs-rst, the reStructuredText parser."
+version = "0.1.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+# Not `lsdocs_rst`, the parser crate's name. Installed as lsdocs_rst.{so,dll}
+# (see the rockspec): `require("lsdocs_rst")` calls luaopen_lsdocs_rst
+# (built with the `module` feature). The rlib is for the tests, which run
+# the Lua specs in an embedded (vendored) Lua.
+name = "lsdocs_rst_lua"
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[lints]
+workspace = true
+
+[features]
+# An embedded Lua 5.4, so `cargo build/test --workspace` needs no Lua
+# installed. A rock builds with `--no-default-features --features
+# <lua54|luajit>,module`.
+default = ["lua54", "vendored"]
+lua54 = ["mlua/lua54"]
+luajit = ["mlua/luajit"]
+vendored = ["mlua/vendored"]
+# A loadable module for an external interpreter (no Lua linked in).
+module = ["mlua/module"]
+
+[dependencies]
+lsdocs-rst = { workspace = true, features = ["serde"] }
+mlua = { workspace = true, features = ["serialize"] }
+serde.workspace = true
+serde_json.workspace = true

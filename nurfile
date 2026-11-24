@@ -163,6 +163,28 @@ def "nur test node" [] {
     bindings test-node lsdocs-rst-node lsdocs_rst_node lsdocs-rst {}
 }
 
+# Runs the Lua specs (bindings/lua/spec) in an embedded Lua 5.4 and, except
+# on Windows (mlua's vendored LuaJIT needs an MSVC developer prompt there),
+# LuaJIT.
+def "nur test lua" [] {
+    cargo-org test -p lsdocs-rst-lua
+    if $nu.os-info.name != "windows" {
+        cargo-org test -p lsdocs-rst-lua --no-default-features --features luajit,vendored
+    }
+}
+
+# Formats the Lua code with StyLua (`--check` only checks).
+def "nur fmt lua" [--check] {
+    cd bindings/lua
+    if $check { run-cmd stylua --check . } else { run-cmd stylua . }
+}
+
+# Lints the Lua code with selene.
+def "nur lint lua" [] {
+    cd bindings/lua
+    run-cmd selene .
+}
+
 # Regenerates bindings/node/native.{js,d.ts} after changing its #[napi] API.
 def "nur gen node" [] {
     use scripts/bindings.nu
@@ -194,6 +216,9 @@ def "nur ci" [] {
     nur test
     nur test python
     nur test node
+    nur fmt lua --check
+    nur lint lua
+    nur test lua
     nur check-dupes
     nur check-git-deps
 }

@@ -1,0 +1,2 @@
+# The specs run in Lua 5.4 and LuaJIT; lint against what both have.
+std = "lua51"
