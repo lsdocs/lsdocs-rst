@@ -99,9 +99,6 @@ those lists current. To fix:
       exception. Collect them per `parse()` call.
 - [ ] Both: extensions can't be async (Node.js) or run on the calling
       thread's context (Python directives run on a worker thread).
-- [ ] Lua: directives, roles and file loaders written in Lua (the Python
-      and Node.js bindings have them). Needs a Lua state reachable from
-      the parser, which wants `Send + Sync` extensions.
 - [ ] Lua: install the prebuilt modules build-rocks.yml makes through the
       rockspec on luarocks.org (it builds from source with cargo for now),
       and publish them at release (tag.yml).
