@@ -3,6 +3,9 @@
 [tools]
 "cargo:nur" = "0.32.0"
 uv = "0.13.9"
+# Lua format and lint (bindings/lua): `nur fmt lua`, `nur lint lua`.
+stylua = "2.6.0"
+"aqua:Kampfkarren/selene" = "0.32.0"
 
 [settings]
 # Node.js and Python from the version files at the root.

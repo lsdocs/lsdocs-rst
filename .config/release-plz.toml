@@ -30,3 +30,10 @@ version_group = "rst"
 # Released (tagged, changelog) but not on crates.io; tracked by its tags.
 publish = false
 git_only = true
+
+[[package]]
+name = "lsdocs-rst-lua"
+version_group = "rst"
+# Released (tagged, changelog) but not on crates.io; tracked by its tags.
+publish = false
+git_only = true

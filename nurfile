@@ -90,7 +90,7 @@ def "nur unlink" [name?: string] {
 def "nur msrv" [] {
     let groups = (
         cargo-org-out metadata --no-deps --format-version 1 | from json | get packages
-        | select name rust_version | group-by rust_version
+        | select name rust_version metadata | group-by rust_version
         | transpose version crates
         | sort-by {|g| $g.version | split row "." | each { into int } | $in.0 * 1000 + $in.1 }
     )
@@ -98,7 +98,15 @@ def "nur msrv" [] {
         run-cmd rustup toolchain install $group.version --profile minimal --no-self-update
         let names = $group.crates | get name
         print $"Rust ($group.version): ($names | str join ', ')"
-        cargo-org $"+($group.version)" check --no-default-features ...($names | each {|n| [-p $n] } | flatten)
+        # A crate that cannot build without some feature (bindings/lua needs a
+        # Lua version) names it in `[package.metadata.msrv] features`.
+        let features = (
+            $group.crates
+            | each {|c| $c.metadata | default {} | get -o msrv.features | default [] | each {|f| $"($c.name)/($f)" } }
+            | flatten
+        )
+        let feature_args = if ($features | is-empty) { [] } else { [--features ($features | str join ",")] }
+        cargo-org $"+($group.version)" check --no-default-features ...$feature_args ...($names | each {|n| [-p $n] } | flatten)
     }
     let highest = $groups | last | get version
     print $"Rust ($highest): the workspace, default features"
@@ -163,6 +171,28 @@ def "nur test node" [] {
     bindings test-node lsdocs-rst-node lsdocs_rst_node lsdocs-rst {}
 }
 
+# Runs the Lua specs (bindings/lua/spec) in an embedded Lua 5.4 and, except
+# on Windows (mlua's vendored LuaJIT needs an MSVC developer prompt there),
+# LuaJIT.
+def "nur test lua" [] {
+    cargo-org test -p lsdocs-rst-lua
+    if $nu.os-info.name != "windows" {
+        cargo-org test -p lsdocs-rst-lua --no-default-features --features luajit,vendored
+    }
+}
+
+# Formats the Lua code with StyLua (`--check` only checks).
+def "nur fmt lua" [--check] {
+    cd bindings/lua
+    if $check { run-cmd stylua --check . } else { run-cmd stylua . }
+}
+
+# Lints the Lua code with selene.
+def "nur lint lua" [] {
+    cd bindings/lua
+    run-cmd selene .
+}
+
 # Regenerates bindings/node/native.{js,d.ts} after changing its #[napi] API.
 def "nur gen node" [] {
     use scripts/bindings.nu
@@ -194,6 +224,9 @@ def "nur ci" [] {
     nur test
     nur test python
     nur test node
+    nur fmt lua --check
+    nur lint lua
+    nur test lua
     nur check-dupes
     nur check-git-deps
 }

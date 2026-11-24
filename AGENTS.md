@@ -53,7 +53,7 @@ shows them. `nur ci` runs what CI runs: run it before committing. Tools:
 |---|---|
 | `crates/rst` | `lsdocs-rst`: standalone reStructuredText parser (docutils port). Depends on nothing of lsdocs; keep it that way. |
 | `crates/parser-rst` | `lsdocs-parser-rst`: the lsdocs plugin on it. |
-| `bindings/python`, `bindings/node` | `lsdocs-rst` for Python and Node.js; their tests run the conformance cases. |
+| `bindings/python`, `bindings/node`, `bindings/lua` | `lsdocs-rst` for Python, Node.js and Lua; their tests run the conformance cases. |
 | `scripts/rst-*.py` | The docutils bridges behind `nur gen rst` and `nur fuzz rst`. |
 
 Tasks: `nur test python`, `nur test node`, `nur gen node`; `nur gen rst`
