@@ -1,0 +1,7 @@
+{
+  "pep_references": true,
+  "rfc_references": true,
+  "pep_base_url": "https://example.org/peps/",
+  "pep_file_url_template": "pep%d.html",
+  "rfc_base_url": "https://example.org/rfc/"
+}

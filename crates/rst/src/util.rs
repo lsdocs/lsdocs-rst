@@ -221,6 +221,15 @@ pub(crate) fn in_table(c: char, table: &[(u32, u32)]) -> bool {
         .is_ok()
 }
 
+/// The value of `c` as a Unicode decimal digit (Python's `\d`).
+pub(crate) fn digit_value(c: char) -> Option<u32> {
+    let c = u32::from(c);
+    let table = crate::tables::DIGIT;
+    let k = table.partition_point(|&(_, last)| last < c);
+    let &(first, _) = table.get(k).filter(|&&(first, _)| first <= c)?;
+    Some((c - first) % 10)
+}
+
 /// Python's `\w`.
 pub(crate) fn is_word(c: char) -> bool {
     in_table(c, crate::tables::WORD)

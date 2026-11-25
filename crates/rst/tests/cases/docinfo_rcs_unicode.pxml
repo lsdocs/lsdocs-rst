@@ -1,0 +1,34 @@
+<document source="test data">
+    <field_list>
+        <field>
+            <field_name>
+                Date
+            <field_body>
+                <paragraph>
+                    $RCſfile: long-s.txt,v $
+        <field>
+            <field_name>
+                Revision
+            <field_body>
+                <paragraph>
+                    $rcsfİle: dotted-i.txt,v $
+        <field>
+            <field_name>
+                Status
+            <field_body>
+                <paragraph>
+                    $RCSfıle: dotless-i.txt,v $
+        <field>
+            <field_name>
+                Version
+            <field_body>
+                <paragraph>
+                    $Date: ٢٠٢٦/١١/٢٥ ١٢:٠٠ $
+        <field>
+            <field_name>
+                Copyright
+            <field_body>
+                <paragraph>
+                    $Keyword: no fold without IGNORECASE $
+    <paragraph>
+        Text.

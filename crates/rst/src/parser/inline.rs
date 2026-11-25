@@ -17,8 +17,8 @@ use crate::nodes::{Element, Kind, Node, Span, Text};
 use crate::patterns::{is_email, simplename_ends};
 use crate::tables;
 use crate::util::{
-    escape2null, in_table, is_space, normalize_name, restore_backslashes, split_escaped_whitespace,
-    split_whitespace, unescape, whitespace_normalize_name,
+    digit_value, escape2null, in_table, is_space, normalize_name, restore_backslashes,
+    split_escaped_whitespace, split_whitespace, unescape, whitespace_normalize_name,
 };
 
 /// Whether `c1` and `c2` are a matching open/close pair (docutils'
@@ -433,16 +433,19 @@ fn find_uri(s: &[char]) -> Option<(usize, usize, Option<usize>)> {
     })
 }
 
-/// The number made of the digits `s[a..b]`, if it fits.
+/// The number made of the digits `s[a..b]`, if it fits (Python's `int`,
+/// which takes any Unicode decimal digits).
 fn number(s: &[char], a: usize, b: usize) -> Option<i64> {
-    text_of(s, a, b).parse().ok()
+    s[a..b].iter().try_fold(0i64, |n, &c| {
+        n.checked_mul(10)?.checked_add(i64::from(digit_value(c)?))
+    })
 }
 
-/// The end of the run of digits (Python's `\d`, ASCII only here) at `i`.
+/// The end of the run of digits (Python's `\d`) at `i`.
 fn digits_end(s: &[char], i: usize) -> usize {
     i + s[i.min(s.len())..]
         .iter()
-        .take_while(|c| c.is_ascii_digit())
+        .take_while(|&&c| digit_value(c).is_some())
         .count()
 }
 

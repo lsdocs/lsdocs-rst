@@ -84,6 +84,16 @@ def main(out: Path) -> None:
         lambda c: unicodedata.combining(c) != 0,
     )
     code += table("WORD", "Python's `\\w`.", r"\w")
+    digits = ranges(r"\d")
+    # Each range is whole runs of ten, from a zero to a nine, so a digit's
+    # value is its offset from the range's start, modulo 10.
+    for a, b in digits:
+        assert unicodedata.decimal(chr(a)) == 0 and (b - a + 1) % 10 == 0, hex(a)
+    code += render(
+        "DIGIT",
+        "Python's `\\d`: runs of ten decimal digits, each from its zero to its nine.",
+        digits,
+    )
     code += chars("OPENERS", "docutils' `openers`, index-aligned with `CLOSERS`.", pc.openers)
     code += chars("CLOSERS", "docutils' `closers`.", pc.closers)
     pairs = "".join(

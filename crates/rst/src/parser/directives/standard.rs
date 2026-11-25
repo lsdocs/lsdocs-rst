@@ -801,6 +801,41 @@ fn image(_: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Nod
     }])
 }
 
+/// Python's `url2pathname` (POSIX) on a URI without a scheme: the query
+/// and fragment dropped, an authority other than `localhost` refused, and
+/// the path percent-decoded as UTF-8 (`None` if that fails: Python would
+/// keep the bytes as surrogates, which no file name here has).
+fn url2pathname(uri: &str) -> Option<String> {
+    let uri = uri.split(['?', '#']).next().unwrap_or_default();
+    let path = match uri.strip_prefix("//") {
+        Some(rest) => {
+            let slash = rest.find('/').unwrap_or(rest.len());
+            if !matches!(&rest[..slash], "" | "localhost") {
+                return None;
+            }
+            &rest[slash..]
+        }
+        None => uri,
+    };
+    let bytes = path.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let hex = |b: Option<&u8>| b.and_then(|&b| char::from(b).to_digit(16));
+        match (bytes[i], hex(bytes.get(i + 1)), hex(bytes.get(i + 2))) {
+            (b'%', Some(hi), Some(lo)) => {
+                out.push(u8::try_from(hi * 16 + lo).ok()?);
+                i += 3;
+            }
+            (b, _, _) => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
 fn figure(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<Node>, Failure> {
     let figwidth = call.take("figwidth");
     let figclasses = call.take("figclass");
@@ -823,8 +858,10 @@ fn figure(m: &mut Machine, doc: &mut Document, call: &mut Call) -> Result<Vec<No
                 .next()
                 .and_then(|i| i.attributes.get_str("uri"))
                 .map(str::to_owned);
-            if let (Some(loader), Some(uri)) = (doc.extensions.loader.clone(), uri)
-                && let Ok(bytes) = loader.read_file(&uri)
+            if let (Some(loader), Some(path)) = (
+                doc.extensions.loader.clone(),
+                uri.as_deref().and_then(url2pathname),
+            ) && let Ok(bytes) = loader.read_file(&path)
                 && let Some(width) = crate::files::image_width(&bytes)
             {
                 figure.attributes.set("width", format!("{width}px"));

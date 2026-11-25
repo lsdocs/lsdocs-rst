@@ -5,7 +5,7 @@ use super::{has, key_of};
 use crate::nodes::{AttrValue, Element, Kind, Node, Text};
 use crate::parser::document::{At, Document, Key, LINE, RAW, WARNING};
 use crate::parser::inline::astext;
-use crate::util::{make_id, normalize_name, strip};
+use crate::util::{digit_value, make_id, normalize_name, strip};
 
 /// docutils' `PreBibliographic` elements: those that may come before the
 /// bibliographic fields.
@@ -518,18 +518,31 @@ fn sub_all(chars: &[char], pattern: Matcher) -> Option<String> {
     found.then_some(out)
 }
 
-/// Whether `chars[at..]` starts with `prefix`, ignoring ASCII case.
+/// Whether `c` matches the ASCII character `p` under Python's
+/// `re.IGNORECASE`: ASCII case, plus the only non-ASCII letters that fold
+/// to ASCII ones (long s, dotted and dotless i, Kelvin sign).
+fn eq_ci(c: char, p: char) -> bool {
+    c.eq_ignore_ascii_case(&p)
+        || matches!(
+            (p.to_ascii_lowercase(), c),
+            ('s', '\u{17f}') | ('i', '\u{130}' | '\u{131}') | ('k', '\u{212a}')
+        )
+}
+
+/// Whether `chars[at..]` starts with the ASCII `prefix`, ignoring case
+/// as Python's `re.IGNORECASE` does.
 fn starts_with_ci(chars: &[char], at: usize, prefix: &str) -> bool {
     let n = prefix.chars().count();
     at + n <= chars.len()
         && chars[at..at + n]
             .iter()
             .zip(prefix.chars())
-            .all(|(a, b)| a.eq_ignore_ascii_case(&b))
+            .all(|(&a, b)| eq_ci(a, b))
 }
 
+/// Python's `\d`.
 fn is_digit(c: char) -> bool {
-    c.is_ascii_digit()
+    digit_value(c).is_some()
 }
 
 /// `\$Date: (\d\d\d\d)[-/](\d\d)[-/](\d\d)[ T][\d:]+[^$]* \$`, ignoring

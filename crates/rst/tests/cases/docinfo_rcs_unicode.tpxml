@@ -1,0 +1,14 @@
+<document source="test data">
+    <docinfo>
+        <date>
+            long-s.txt
+        <revision>
+            dotted-i.txt
+        <status>
+            dotless-i.txt
+        <version>
+            ٢٠٢٦-١١-٢٥
+        <copyright>
+            $Keyword: no fold without IGNORECASE $
+    <paragraph>
+        Text.
