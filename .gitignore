@@ -8,7 +8,7 @@ __pycache__/
 *.pdb
 *.node
 *.pyd
-*.abi3.so
+*.so
 .lsdocs-cache/
 /site/
 /bindings/node/*.node
