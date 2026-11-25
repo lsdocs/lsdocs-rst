@@ -58,8 +58,6 @@ Items marked `[ ]` under TODO are also limitations until done. The
       blocks are always as with `none`), `expose_internals`, and the
       `Decorations` settings (`generator`, `datestamp`, `source_link`,
       `source_url`).
-- [ ] PEP and RFC references in plain text match ASCII digits only;
-      Python's `\d` also matches other Unicode decimal digits.
 - [ ] The XML writer doesn't check raw XML for well-formedness (docutils
       warns about invalid raw XML).
 - [ ] Report docutils' `TargetNotes` infinite loop upstream: a paragraph

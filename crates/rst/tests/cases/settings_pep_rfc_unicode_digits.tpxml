@@ -1,0 +1,26 @@
+<document source="test data">
+    <paragraph>
+        Arabic-Indic: 
+        <reference refuri="https://example.org/peps/pep8.html">
+            PEP ٨
+        , 
+        <reference refuri="https://example.org/peps/pep12.html">
+            pep-١٢
+        , 
+        <reference refuri="https://example.org/rfc/rfc2822.html">
+            RFC ٢٨٢٢
+         and 
+        <reference refuri="https://example.org/rfc/rfc822.html">
+            RFC-٨٢٢
+        .
+    <paragraph>
+        Fullwidth: 
+        <reference refuri="https://example.org/peps/pep8.html">
+            PEP ８
+         and 
+        <reference refuri="https://example.org/rfc/rfc1.html">
+            RFC１
+        ; mixed: 
+        <reference refuri="https://example.org/peps/pep12.html">
+            PEP 1٢
+        .

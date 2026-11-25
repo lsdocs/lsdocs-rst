@@ -433,16 +433,28 @@ fn find_uri(s: &[char]) -> Option<(usize, usize, Option<usize>)> {
     })
 }
 
-/// The number made of the digits `s[a..b]`, if it fits.
-fn number(s: &[char], a: usize, b: usize) -> Option<i64> {
-    text_of(s, a, b).parse().ok()
+/// The value of `c` as a Unicode decimal digit (Python's `\d`).
+fn digit_value(c: char) -> Option<u32> {
+    let c = u32::from(c);
+    let table = crate::tables::DIGIT;
+    let k = table.partition_point(|&(_, last)| last < c);
+    let &(first, _) = table.get(k).filter(|&&(first, _)| first <= c)?;
+    Some((c - first) % 10)
 }
 
-/// The end of the run of digits (Python's `\d`, ASCII only here) at `i`.
+/// The number made of the digits `s[a..b]`, if it fits (Python's `int`,
+/// which takes any Unicode decimal digits).
+fn number(s: &[char], a: usize, b: usize) -> Option<i64> {
+    s[a..b].iter().try_fold(0i64, |n, &c| {
+        n.checked_mul(10)?.checked_add(i64::from(digit_value(c)?))
+    })
+}
+
+/// The end of the run of digits (Python's `\d`) at `i`.
 fn digits_end(s: &[char], i: usize) -> usize {
     i + s[i.min(s.len())..]
         .iter()
-        .take_while(|c| c.is_ascii_digit())
+        .take_while(|&&c| digit_value(c).is_some())
         .count()
 }
 
