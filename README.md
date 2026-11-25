@@ -44,8 +44,10 @@ Items marked `[ ]` under TODO are also limitations until done. The
       systems (path separators), so the conformance cases avoid them.
 - [ ] A `.. end of inclusion from "x"` comment without an `include` makes
       docutils crash; lsdocs-rst ignores it.
-- [ ] `figure :figwidth: image`: docutils turns the URI into a path with
-      `url2pathname` (percent-decoding); lsdocs-rst uses the URI as is.
+- [ ] `figure :figwidth: image` with a URI naming a host other than
+      `localhost` (`//host/img.png`) makes docutils crash; lsdocs-rst
+      leaves the width out. Windows drive and UNC forms of
+      `url2pathname` are not reproduced.
 - [ ] Messages for `:url:` failures are close to Python's, not identical.
 - [ ] `nur fuzz rst` runs without file access, so includes are not fuzzed;
       add a mode with generated include files.

@@ -1,0 +1,13 @@
+<document source="test data">
+    <figure width="37px">
+        <image uri="files/im%67.png">
+    <figure width="39px">
+        <image uri="files/img%2Ejpg?query=1">
+    <figure width="38px">
+        <image uri="files/img.gif#fragment">
+    <figure>
+        <image uri="files/img.bmp%3Fnot-a-query">
+    <figure>
+        <image uri="files/%ZZimg.png">
+    <figure>
+        <image uri="files/img%FF.png">
