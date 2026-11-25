@@ -24,6 +24,9 @@ Items marked `[ ]` under TODO are also limitations until done. The
 `docutils.conf` reader's differences from docutils are listed in
 `crates/parser-rst/README.md`; the bindings' own in their READMEs.
 
+- A `.. end of inclusion from "x"` comment without an `include` makes
+  docutils crash; lsdocs-rst ignores it.
+
 ## TODO
 
 ### lsdocs-rst
@@ -42,8 +45,6 @@ Items marked `[ ]` under TODO are also limitations until done. The
       working directory; lsdocs-rst keeps them absolute. Expected trees for
       includes from subdirectories differ between Windows and other
       systems (path separators), so the conformance cases avoid them.
-- [ ] A `.. end of inclusion from "x"` comment without an `include` makes
-      docutils crash; lsdocs-rst ignores it.
 - [ ] `figure :figwidth: image` with a URI naming a host other than
       `localhost` (`//host/img.png`) makes docutils crash; lsdocs-rst
       leaves the width out. Windows drive and UNC forms of
