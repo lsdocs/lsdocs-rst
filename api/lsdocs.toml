@@ -8,7 +8,7 @@ source_dir = "content"
 
 [[plugins]]
 name = "markdown"
-builtin = "parser-markdown"
+builtin = "parser-myst"
 
 # Python docstrings are reStructuredText, with Sphinx's roles.
 [[plugins]]
