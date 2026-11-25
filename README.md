@@ -44,8 +44,6 @@ Items marked `[ ]` under TODO are also limitations until done. The
       systems (path separators), so the conformance cases avoid them.
 - [ ] A `.. end of inclusion from "x"` comment without an `include` makes
       docutils crash; lsdocs-rst ignores it.
-- [ ] RCS keyword cleaning (docinfo) matches case-insensitively only for
-      ASCII; Python's `re.IGNORECASE` also folds a few non-ASCII letters.
 - [ ] `figure :figwidth: image`: docutils turns the URI into a path with
       `url2pathname` (percent-decoding); lsdocs-rst uses the URI as is.
 - [ ] Messages for `:url:` failures are close to Python's, not identical.

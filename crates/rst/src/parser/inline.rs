@@ -17,8 +17,8 @@ use crate::nodes::{Element, Kind, Node, Span, Text};
 use crate::patterns::{is_email, simplename_ends};
 use crate::tables;
 use crate::util::{
-    escape2null, in_table, is_space, normalize_name, restore_backslashes, split_escaped_whitespace,
-    split_whitespace, unescape, whitespace_normalize_name,
+    digit_value, escape2null, in_table, is_space, normalize_name, restore_backslashes,
+    split_escaped_whitespace, split_whitespace, unescape, whitespace_normalize_name,
 };
 
 /// Whether `c1` and `c2` are a matching open/close pair (docutils'
@@ -431,15 +431,6 @@ fn find_uri(s: &[char]) -> Option<(usize, usize, Option<usize>)> {
         }
         uri_at(s, i).map(|(end, scheme)| (i, end, scheme))
     })
-}
-
-/// The value of `c` as a Unicode decimal digit (Python's `\d`).
-fn digit_value(c: char) -> Option<u32> {
-    let c = u32::from(c);
-    let table = crate::tables::DIGIT;
-    let k = table.partition_point(|&(_, last)| last < c);
-    let &(first, _) = table.get(k).filter(|&&(first, _)| first <= c)?;
-    Some((c - first) % 10)
 }
 
 /// The number made of the digits `s[a..b]`, if it fits (Python's `int`,
