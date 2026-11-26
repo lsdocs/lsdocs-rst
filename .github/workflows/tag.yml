@@ -6,8 +6,9 @@
 # publishes them to npm the same way, platform packages first. A
 # `lsdocs-rst-lua/v*` tag builds the Lua modules (every target and Lua version)
 # and the rockspec, and attaches them to its GitHub release, as lsdocs'
-# binaries are (`luarocks install <the rockspec's release URL>` then builds
-# from the tag).
+# binaries are, then uploads the rockspec to luarocks.org (the
+# `release` environment's LUAROCKS_API_KEY; luarocks.org has no trusted
+# publishing). The rockspec builds from the tag with cargo.
 name: Tag
 
 on:
@@ -179,3 +180,41 @@ jobs:
         run: >-
           gh release upload "$TAG" dist/*.tar.gz dist/*.rockspec
           --repo "$GITHUB_REPOSITORY" --clobber
+
+  # After the release has its assets: the rockspec (and a source rock packed
+  # from the tag) to luarocks.org.
+  publish-luarocks:
+    needs: upload-rocks
+    runs-on: ubuntu-latest
+    environment: release
+    permissions: {}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: rockspec
+          path: dist
+      # Lua with LuaRocks (as build-rocks.yml's lua54-tool).
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          # A tag build: no cache (cache poisoning).
+          cache: false
+          mise_toml: |
+            [tools]
+            lua = "5.4.9"
+      # The account must not require 2FA for uploads (CI cannot enter a
+      # code). A version already on luarocks.org is skipped (safe to
+      # re-run).
+      - name: Upload to luarocks.org
+        env:
+          LUAROCKS_API_KEY: ${{ secrets.LUAROCKS_API_KEY }}
+        run: |
+          rockspec=$(ls dist/*.rockspec)
+          if ! out=$(luarocks upload "$rockspec" --temp-key "$LUAROCKS_API_KEY" 2>&1); then
+            echo "$out"
+            case "$out" in
+              *"already exists on the server"*) echo "$rockspec is already on luarocks.org" ;;
+              *) exit 1 ;;
+            esac
+          else
+            echo "$out"
+          fi

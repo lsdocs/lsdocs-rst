@@ -49,7 +49,8 @@ shows them. `nur ci` runs what CI runs: run it before committing. Tools:
   with `publish = false`); a `lsdocs-rst-python/v*` tag publishes the
   Python package to PyPI, a `lsdocs-rst-node/v*` tag the Node.js packages
   to npm, and a `lsdocs-rst-lua/v*` tag attaches the Lua modules and the
-  rockspec to its GitHub release (`tag.yml`).
+  rockspec to its GitHub release and uploads the rockspec to
+  luarocks.org (`tag.yml`).
 - Record what is left open in README.md's TODO section, and what the code
   does not do (or does differently) under Known limitations.
 
