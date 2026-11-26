@@ -8,7 +8,9 @@
 # and the rockspec, and attaches them to its GitHub release, as lsdocs'
 # binaries are, then uploads the rockspec to luarocks.org (the
 # `release` environment's LUAROCKS_API_KEY; luarocks.org has no trusted
-# publishing). The rockspec builds from the tag with cargo.
+# publishing). The rockspec installs the release's module for the user's
+# Lua and platform (lsdocs/.github's luarocks-build-lsdocs-prebuilt), or
+# builds from source with cargo.
 name: Tag
 
 on:
@@ -154,8 +156,8 @@ jobs:
       rockspec: lsdocs-rst.rockspec.in
       version: ${{ needs.lua-version.outputs.version }}
 
-  # The modules (`lsdocs_rst-<version>-<lua>-<target>.tar.gz`) and the
-  # rockspec, attached to the release.
+  # The modules (`lsdocs_rst-<version>-<lua>-<target>.tar.gz`), the rockspec
+  # and SHA256SUMS, attached to the release.
   upload-rocks:
     needs: [release, rocks]
     runs-on: ubuntu-latest
@@ -179,7 +181,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: >-
           gh release upload "$TAG" dist/*.tar.gz dist/*.rockspec
-          --repo "$GITHUB_REPOSITORY" --clobber
+          dist/SHA256SUMS --repo "$GITHUB_REPOSITORY" --clobber
 
   # After the release has its assets: the rockspec (and a source rock packed
   # from the tag) to luarocks.org.

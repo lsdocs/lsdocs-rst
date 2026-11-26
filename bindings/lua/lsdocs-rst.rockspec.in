@@ -1,10 +1,11 @@
 -- The rockspec template: lsdocs/.github's build-rocks.yml writes
--- lsdocs-rst-<version>-1.rockspec from it, @VERSION@ being the version of
--- the lsdocs-rst-lua crate.
+-- lsdocs-rst-<version>-1.rockspec from it, @VERSION@ being the version of the
+-- lsdocs-rst-lua crate and @SHA256@ the SHA-256 of each prebuilt module it
+-- built (one `["<lua>-<target>"] = "<hash>",` line per archive).
 --
--- It builds from source with cargo (luarocks-build-rust-mlua). Installing
--- the prebuilt modules build-rocks.yml makes instead is not done yet (see
--- README.md, TODO).
+-- luarocks-build-lsdocs-prebuilt (lsdocs/.github) installs the prebuilt
+-- module attached to the release for this Lua and platform, and builds
+-- from source with cargo (luarocks-build-rust-mlua) when there is none.
 rockspec_format = "3.0"
 package = "lsdocs-rst"
 version = "@VERSION@-1"
@@ -30,11 +31,15 @@ dependencies = {
 }
 
 build_dependencies = {
-  "luarocks-build-rust-mlua",
+  "luarocks-build-lsdocs-prebuilt",
 }
 
 build = {
-  type = "rust-mlua",
+  type = "lsdocs-prebuilt",
+  url = "https://github.com/lsdocs/lsdocs-rst/releases/download/lsdocs-rst-lua%2Fv@VERSION@",
+  sha256 = {
+@SHA256@
+  },
   modules = {
     -- require("lsdocs_rst") <- the lsdocs_rst_lua library.
     ["lsdocs_rst"] = "lsdocs_rst_lua",

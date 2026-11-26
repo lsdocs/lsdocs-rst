@@ -104,10 +104,11 @@ with `-C link-arg=-undefined -C link-arg=dynamic_lookup`.
 - Extensions run on the thread that called `parse`, inside it; a parse
   started on another thread (none can be, from Lua) would find no Lua
   state and report each Lua extension as raising an error.
-- No Windows modules yet. `luarocks install lsdocs-rst` builds from source
-  with cargo: the prebuilt modules attached to each GitHub release
-  (`lsdocs-rst-lua/v<version>`, `<module>-<version>-<lua>-<target>.tar.gz`,
-  for `package.cpath`) are not used by the rockspec yet.
+- `luarocks install lsdocs-rst` installs the prebuilt module attached to the
+  GitHub release (`lsdocs-rst-lua/v<version>`) for Lua 5.4 or LuaJIT on Linux
+  (glibc) and macOS, x86_64 and aarch64; elsewhere, or where that module
+  does not load, it builds from source with cargo. `LSDOCS_PREBUILT=0`
+  always builds from source. No Windows modules yet.
 
 [reStructuredText]: https://docutils.sourceforge.io/rst.html
 [docutils]: https://docutils.sourceforge.io/

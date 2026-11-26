@@ -96,9 +96,6 @@ those lists current. To fix:
       exception. Collect them per `parse()` call.
 - [ ] Both: extensions can't be async (Node.js) or run on the calling
       thread's context (Python directives run on a worker thread).
-- [ ] Lua: install the prebuilt modules attached to each release through
-      the rockspec on luarocks.org (it builds from source with cargo for
-      now; lsdocs/.github#18).
 - [ ] Lua: Windows modules (they link the Lua library, so build-rocks.yml
       needs an MSVC Lua 5.4 and LuaJIT to link to), and LuaJIT specs on
       Windows (`nur test lua` skips them: mlua's vendored LuaJIT needs an
