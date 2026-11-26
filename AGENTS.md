@@ -43,7 +43,13 @@ shows them. `nur ci` runs what CI runs: run it before committing. Tools:
 - No panics outside tests: clippy denies `unwrap_used`, `expect_used` and
   `panic` in library, binary and example code. Tests opt in per module
   (`#![allow(clippy::unwrap_used)]`).
-- Licensing: `Apache-2.0 OR MIT`. Nothing is published.
+- Licensing: `Apache-2.0 OR MIT`.
+- Publishing: merging release-plz's release PR publishes the bumped
+  crates to crates.io (`.github/workflows/release.yml`) (not those
+  with `publish = false`); a `lsdocs-rst-python/v*` tag publishes the
+  Python package to PyPI, a `lsdocs-rst-node/v*` tag the Node.js packages
+  to npm, and a `lsdocs-rst-lua/v*` tag attaches the Lua modules and the
+  rockspec to its GitHub release (`tag.yml`).
 - Record what is left open in README.md's TODO section, and what the code
   does not do (or does differently) under Known limitations.
 

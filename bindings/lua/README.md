@@ -104,8 +104,11 @@ with `-C link-arg=-undefined -C link-arg=dynamic_lookup`.
 - Extensions run on the thread that called `parse`, inside it; a parse
   started on another thread (none can be, from Lua) would find no Lua
   state and report each Lua extension as raising an error.
-- No Windows modules yet, and no prebuilt ones on luarocks.org: the
-  rockspec builds from source with cargo.
+- No Windows modules yet, and not on luarocks.org: each GitHub release
+  (`lsdocs-rst-lua/v<version>`) carries the rockspec, which builds from source
+  with cargo (`luarocks install <its URL>`), and the prebuilt modules
+  (`<module>-<version>-<lua>-<target>.tar.gz`, for `package.cpath`),
+  which the rockspec does not use yet.
 
 [reStructuredText]: https://docutils.sourceforge.io/rst.html
 [docutils]: https://docutils.sourceforge.io/
