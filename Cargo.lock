@@ -251,7 +251,7 @@ dependencies = [
 
 [[package]]
 name = "lsdocs-parser-rst"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "lsdocs-plugin-sdk",
  "lsdocs-rst",
@@ -305,7 +305,7 @@ dependencies = [
 
 [[package]]
 name = "lsdocs-rst"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "lsdocs-rst",
  "serde",
@@ -315,7 +315,7 @@ dependencies = [
 
 [[package]]
 name = "lsdocs-rst-lua"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "lsdocs-rst",
  "mlua",
@@ -325,7 +325,7 @@ dependencies = [
 
 [[package]]
 name = "lsdocs-rst-node"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "lsdocs-rst",
  "napi",
@@ -337,7 +337,7 @@ dependencies = [
 
 [[package]]
 name = "lsdocs-rst-python"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "lsdocs-rst",
  "pyo3",

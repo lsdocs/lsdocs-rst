@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/lsdocs/lsdocs-rst/compare/lsdocs-parser-rst/v0.1.0...lsdocs-parser-rst/v0.1.1) - 2026-11-26
+
+### Added
+
+- *(rst)* task lists, on by default in the lsdocs plugin ([#46](https://github.com/lsdocs/lsdocs-rst/pull/46))
+
+### Fixed
+
+- *(parser-rst)* spans for diagnostics about included files ([#47](https://github.com/lsdocs/lsdocs-rst/pull/47))
+
 ## [0.1.0](https://github.com/lsdocs/lsdocs-rst/releases/tag/lsdocs-parser-rst/v0.1.0) - 2026-11-22
 
 ### Added
