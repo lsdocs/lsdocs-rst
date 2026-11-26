@@ -26,6 +26,9 @@ Items marked `[ ]` under TODO are also limitations until done. The
 
 - A `.. end of inclusion from "x"` comment without an `include` makes
   docutils crash; lsdocs-rst ignores it.
+- In lsdocs, a diagnostic about an included file spans the whole line
+  it is on (in that file), not the problem's characters: elements from
+  an included file have spans at the `include` directive.
 
 ## TODO
 
@@ -81,7 +84,6 @@ Items marked `[ ]` under TODO are also limitations until done. The
 - [ ] Topic and sidebar titles become bold paragraphs; nested line blocks
       are indented with no-break spaces.
 - [ ] Option values of unknown directives are kept as strings.
-- [ ] Diagnostics about included files have no span.
 
 ### Bindings
 
