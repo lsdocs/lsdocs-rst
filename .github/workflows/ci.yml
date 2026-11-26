@@ -26,6 +26,9 @@ jobs:
     uses: lsdocs/.github/.github/workflows/ci.yml@main
     permissions:
       contents: read
+    with:
+      # The LuaJIT specs on Windows (mlua's vendored LuaJIT).
+      msvc-dev-cmd: true
 
   # Each crate on its own rust-version (nur msrv installs the toolchains).
   msrv:

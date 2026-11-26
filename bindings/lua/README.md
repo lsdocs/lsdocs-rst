@@ -92,12 +92,15 @@ local parser = rst.parser({ directives = { shout = shout }, roles = { kbd = kbd 
 
 ## Building
 
-`nur test lua` runs the specs (`spec/*_spec.lua`) in an embedded Lua 5.4,
-and in LuaJIT except on Windows. The module for an external Lua builds
-with `cargo build -p lsdocs-rst-lua --release --no-default-features
---features lua54,module` (or `luajit,module`); the library
-(`liblsdocs_rst_lua.so`) is installed as `lsdocs_rst.so`. On macOS, link
-with `-C link-arg=-undefined -C link-arg=dynamic_lookup`.
+`nur test lua` runs the specs (`spec/*_spec.lua`) in an embedded Lua
+5.4, and in LuaJIT (on Windows, from an MSVC developer prompt). The
+module for an external Lua builds with `cargo build -p lsdocs-rst-lua
+--release --no-default-features --features lua54,module` (or
+`luajit,module`); the library (`liblsdocs_rst_lua.so`) is installed as
+`lsdocs_rst.so`. On macOS, link with `-C link-arg=-undefined -C
+link-arg=dynamic_lookup`. On Windows, the module binds `lua54.dll`
+(`lua51.dll` for LuaJIT) by name (mlua's raw-dylib linking): no Lua
+library is needed to build it.
 
 ## Known limitations
 
@@ -106,9 +109,10 @@ with `-C link-arg=-undefined -C link-arg=dynamic_lookup`.
   state and report each Lua extension as raising an error.
 - `luarocks install lsdocs-rst` installs the prebuilt module attached to the
   GitHub release (`lsdocs-rst-lua/v<version>`) for Lua 5.4 or LuaJIT on Linux
-  (glibc) and macOS, x86_64 and aarch64; elsewhere, or where that module
-  does not load, it builds from source with cargo. `LSDOCS_PREBUILT=0`
-  always builds from source. No Windows modules yet.
+  (glibc) and macOS (x86_64 and aarch64) and Windows (x86_64, a Lua whose
+  DLL is `lua54.dll`, or LuaJIT's `lua51.dll`). Elsewhere, or where that
+  module does not load, it builds from source with cargo.
+  `LSDOCS_PREBUILT=0` always builds from source.
 
 [reStructuredText]: https://docutils.sourceforge.io/rst.html
 [docutils]: https://docutils.sourceforge.io/
