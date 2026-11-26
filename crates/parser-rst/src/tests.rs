@@ -321,3 +321,31 @@ async fn docutils_conf_settings_apply() {
     let json = serde_json::to_string(&result.document).unwrap();
     assert!(json.contains("pep-0008"), "{json}");
 }
+
+#[test]
+fn task_list_items_are_checked_or_not() {
+    let (doc, diagnostics) =
+        doc("- [ ] todo\n- [x] done\n- [X] also done\n- plain\n- [y] not a box\n");
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let Node::List(list) = &doc.children[0] else {
+        panic!("{:?}", doc.children)
+    };
+    let items: Vec<_> = list
+        .children
+        .iter()
+        .map(|n| match n {
+            Node::ListItem(i) => (i.checked, plain_text(&i.children)),
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        items,
+        [
+            (Some(false), "todo".to_owned()),
+            (Some(true), "done".to_owned()),
+            (Some(true), "also done".to_owned()),
+            (None, "plain".to_owned()),
+            (None, "[y] not a box".to_owned()),
+        ]
+    );
+}

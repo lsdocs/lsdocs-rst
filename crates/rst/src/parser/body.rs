@@ -297,8 +297,16 @@ impl Machine {
                 self.get_first_known_indented(doc, indent, false, true, true);
             (lines, offset, blank_finish)
         };
+        let mut indented = indented;
         let mut item = Element::new(Kind::ListItem);
         item.span = self.span(start, start);
+        if doc.extensions.settings.task_lists
+            && let Some(first) = indented.first_mut()
+            && let Some((checked, width)) = task_marker(&first.text)
+        {
+            *first = super::machine::trim_line(first, width);
+            item.attributes.set("checked", AttrValue::Bool(checked));
+        }
         if !indented.is_empty() {
             doc.open(item, false);
             self.nested_parse(doc, indented, offset);
@@ -787,4 +795,21 @@ fn check_attribution(indented: &[Line], start: usize) -> Option<(usize, usize)> 
         i = start + 2;
     }
     Some((i, indent.unwrap_or(0)))
+}
+
+/// A task list marker at the start of a list item's text: whether it is
+/// checked, and how many characters it takes with the spaces after it.
+/// The marker is `[ ]`, `[x]` or `[X]`, then a space, then more text.
+fn task_marker(text: &str) -> Option<(bool, usize)> {
+    let checked = match text.get(..3)? {
+        "[ ]" => false,
+        "[x]" | "[X]" => true,
+        _ => return None,
+    };
+    let rest = &text[3..];
+    let after = rest.trim_start_matches(' ');
+    if after.len() == rest.len() || after.is_empty() {
+        return None;
+    }
+    Some((checked, 3 + rest.len() - after.len()))
 }

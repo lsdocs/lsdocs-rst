@@ -83,10 +83,6 @@ Items marked `[ ]` under TODO are also limitations until done. The
 - [ ] Option values of unknown directives are kept as strings.
 - [ ] Diagnostics about included files have no span.
 
-- [ ] Task lists (`- [ ] item`, `- [x] item`) in reStructuredText: a
-      docutils-style extension, so both parsers have them (Markdown's come
-      from pulldown-cmark).
-
 ### Bindings
 
 Their known limitations are listed in each package's README

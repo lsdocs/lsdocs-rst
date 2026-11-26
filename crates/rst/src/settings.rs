@@ -73,6 +73,11 @@ pub struct Settings {
     pub auto_id_prefix: String,
     /// Remove comments (transforms only).
     pub strip_comments: bool,
+    /// Task lists, an extension of lsdocs-rst (not a docutils setting): a
+    /// list item whose text starts with `[ ]`, `[x]` or `[X]` and a space
+    /// loses that marker and gets a boolean `checked` attribute. Off by
+    /// default, as docutils has no task lists.
+    pub task_lists: bool,
 }
 
 impl Default for Settings {
@@ -96,6 +101,7 @@ impl Default for Settings {
             id_prefix: String::new(),
             auto_id_prefix: "%".to_owned(),
             strip_comments: false,
+            task_lists: false,
         }
     }
 }

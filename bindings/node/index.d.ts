@@ -46,6 +46,8 @@ export interface Settings {
   id_prefix?: string
   auto_id_prefix?: string
   strip_comments?: boolean
+  /** Task lists (`- [ ] item`, `- [x] item`); not a docutils setting. Off by default. */
+  task_lists?: boolean
 }
 
 /** docutils' option conversion functions, by name. */
