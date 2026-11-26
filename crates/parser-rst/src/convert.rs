@@ -22,8 +22,21 @@ pub fn convert(
     tree: &Element,
     messages: &[Element],
 ) -> (Document, Vec<Diagnostic>) {
+    convert_with_included(source, text, tree, messages, &HashMap::new())
+}
+
+/// [`convert`], with the text of the files directives included, by the
+/// path messages name them by, so diagnostics about them get spans there.
+pub fn convert_with_included(
+    source: &str,
+    text: &str,
+    tree: &Element,
+    messages: &[Element],
+    included: &HashMap<String, String>,
+) -> (Document, Vec<Diagnostic>) {
     let mut cx = Cx {
         source,
+        included,
         lines: lsdocs_rst::lines::lines(text)
             .into_iter()
             .map(|l| l.span)
@@ -45,6 +58,8 @@ pub fn convert(
 
 struct Cx<'a> {
     source: &'a str,
+    /// The text of included files, by path.
+    included: &'a HashMap<String, String>,
     /// The span of each input line.
     lines: Vec<Span>,
     /// Ids references point to.
@@ -173,19 +188,21 @@ impl Cx<'_> {
             Some(AttrValue::Int(n)) if *n >= 1 => Some(*n as usize),
             _ => None,
         };
-        let at = backref.or_else(|| {
-            line.filter(|_| own)
-                .and_then(|l| self.lines.get(l - 1).copied())
-        });
+        // Elements from an included file have spans in the including
+        // document (at the directive), so a message about an included file
+        // gets the span of its line in that file instead.
+        let at = match msg_source {
+            Some(file) if !own => line.and_then(|l| {
+                let text = self.included.get(file)?;
+                lsdocs_rst::lines::lines(text).get(l - 1).map(|l| l.span)
+            }),
+            _ => backref.or_else(|| line.and_then(|l| self.lines.get(l - 1).copied())),
+        };
         self.diagnostics.push(Diagnostic {
             severity,
             message: text,
             source: Some(msg_source.unwrap_or(self.source).to_owned()),
-            span: if own || backref.is_some() {
-                span(at)
-            } else {
-                None
-            },
+            span: span(at),
             code: Some("rst".into()),
         });
     }

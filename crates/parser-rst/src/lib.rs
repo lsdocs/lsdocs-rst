@@ -53,6 +53,7 @@
 mod conf;
 mod convert;
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -157,7 +158,7 @@ fn rst_parser_recording(
     source: &str,
     source_dir: Option<&str>,
     syntax: &Syntax,
-    read: Option<Arc<Mutex<Vec<String>>>>,
+    read: Option<Arc<Mutex<Reads>>>,
     settings: lsdocs_rst::Settings,
 ) -> lsdocs_rst::Parser {
     let mut parser = lsdocs_rst::Parser::new()
@@ -185,21 +186,36 @@ fn rst_parser_recording(
     parser
 }
 
-/// A loader noting the files it is asked for.
+/// What a [`Recording`] loader noted.
+#[derive(Debug, Default)]
+struct Reads {
+    /// Every file asked for (or looked for), by full path.
+    paths: Vec<String>,
+    /// The text of each file read, by the path it was asked for by
+    /// (relative to the source directory, as messages name it).
+    texts: HashMap<String, String>,
+}
+
+/// A loader noting the files it is asked for, and the text of those it
+/// reads.
 struct Recording {
     inner: lsdocs_rst::DirectoryLoader,
     dir: String,
-    read: Arc<Mutex<Vec<String>>>,
+    read: Arc<Mutex<Reads>>,
 }
 
 impl lsdocs_rst::FileLoader for Recording {
     fn read_file(&self, path: &str) -> std::io::Result<Vec<u8>> {
         let full = std::path::Path::new(&self.dir).join(path);
-        self.read
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(full.to_string_lossy().replace('\\', "/"));
-        self.inner.read_file(path)
+        let result = self.inner.read_file(path);
+        let mut read = self.read.lock().unwrap_or_else(PoisonError::into_inner);
+        read.paths.push(full.to_string_lossy().replace('\\', "/"));
+        if let Ok(bytes) = &result
+            && let Ok(text) = std::str::from_utf8(bytes)
+        {
+            read.texts.insert(path.to_owned(), text.to_owned());
+        }
+        result
     }
 }
 
@@ -222,13 +238,14 @@ fn parse_configured(
     syntax: &Syntax,
     settings: lsdocs_rst::Settings,
 ) -> ParseResult {
-    let read = Arc::new(Mutex::new(Vec::new()));
+    let read = Arc::new(Mutex::new(Reads::default()));
     let (tree, messages) =
         rst_parser_recording(source, source_dir, syntax, Some(read.clone()), settings)
             .parse_with_messages(text);
-    let (document, diagnostics) = convert(source, text, &tree, &messages);
-    let mut dependencies =
-        std::mem::take(&mut *read.lock().unwrap_or_else(PoisonError::into_inner));
+    let read = std::mem::take(&mut *read.lock().unwrap_or_else(PoisonError::into_inner));
+    let (document, diagnostics) =
+        convert::convert_with_included(source, text, &tree, &messages, &read.texts);
+    let mut dependencies = read.paths;
     dependencies.sort();
     dependencies.dedup();
     ParseResult {
@@ -251,8 +268,8 @@ pub fn parse(
     lsdocs_plugin_sdk::doctree::Document,
     Vec<lsdocs_plugin_sdk::protocol::Diagnostic>,
 ) {
-    let (tree, messages) = rst_parser(source, source_dir, syntax).parse_with_messages(text);
-    convert(source, text, &tree, &messages)
+    let result = parse_configured(source, text, source_dir, syntax, conf::defaults());
+    (result.document, result.diagnostics)
 }
 
 /// Element kinds declared directives and roles make, converted to custom

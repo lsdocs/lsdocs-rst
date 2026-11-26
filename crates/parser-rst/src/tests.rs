@@ -349,3 +349,41 @@ fn task_list_items_are_checked_or_not() {
         ]
     );
 }
+
+#[test]
+fn diagnostics_about_included_files_have_spans_there() {
+    let dir = std::env::temp_dir().join(format!("lsdocs-rst-include-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("guide/sub")).unwrap();
+    let part = "First paragraph, long enough.\n\nBad *emphasis here.\n\n`unclosed\n";
+    std::fs::write(dir.join("guide/sub/part.txt"), part).unwrap();
+    let (_, diagnostics) = parse(
+        "guide/page.rst",
+        "Title\n=====\n\nIntro *also bad.\n\n.. include:: sub/part.txt\n",
+        Some(dir.to_str().unwrap()),
+        &Syntax::default(),
+    );
+    std::fs::remove_dir_all(&dir).ok();
+    let found: Vec<_> = diagnostics
+        .iter()
+        .map(|d| {
+            let span = d.span.unwrap_or_else(|| panic!("no span: {d:?}"));
+            let file = d.source.as_deref().unwrap();
+            let text = if file == "guide/page.rst" {
+                "Title\n=====\n\nIntro *also bad.\n\n.. include:: sub/part.txt\n"
+            } else {
+                assert_eq!(file, "guide/sub/part.txt");
+                part
+            };
+            (file, &text[span.start as usize..span.end as usize])
+        })
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("guide/page.rst", "*"),
+            ("guide/sub/part.txt", "Bad *emphasis here."),
+            ("guide/sub/part.txt", "`unclosed"),
+        ],
+        "{diagnostics:#?}"
+    );
+}
