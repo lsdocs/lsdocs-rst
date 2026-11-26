@@ -13,6 +13,15 @@ It reads docutils' own configuration file,
 `file_insertion_enabled`. Other sections are skipped; docutils settings
 it does not implement are reported once, as a warning.
 
+Task lists (`- [ ] item`, `- [x] item`, `- [X] item`; also in enumerated
+lists) are on: lsdocs-rst's `task_lists` setting, which docutils does not
+have and which is off in `lsdocs-rst` itself. Turn them off with
+
+```ini
+[restructuredtext parser]
+task_lists: no
+```
+
 ## Known differences from docutils
 
 Keep this list current. Reading `docutils.conf` (`src/conf.rs`):
@@ -26,6 +35,7 @@ Keep this list current. Reading `docutils.conf` (`src/conf.rs`):
   docutils ranks them `[general]` < `[parsers]` <
   `[restructuredtext parser]` whatever their order.
 - An empty boolean value reads as false; docutils rejects it.
+- `task_lists` is lsdocs-rst's own setting, not docutils'.
 - `doctitle_xform` is always off (lsdocs takes the title itself), so a
   `doctitle_xform` setting is overridden, without a warning.
 - Warnings about settings it does not implement are logged at the first

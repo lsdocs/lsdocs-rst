@@ -23,10 +23,19 @@ pub(crate) struct Conf {
     pub warnings: Vec<String>,
 }
 
+/// The settings before `docutils.conf`: docutils' defaults, with
+/// lsdocs-rst's task lists on.
+pub(crate) fn defaults() -> Settings {
+    Settings {
+        task_lists: true,
+        ..Settings::default()
+    }
+}
+
 impl Default for Conf {
     fn default() -> Self {
         Self {
-            settings: Settings::default(),
+            settings: defaults(),
             file_insertion_enabled: true,
             warnings: Vec::new(),
         }
@@ -68,7 +77,7 @@ const NOT_THE_PARSERS: &[&str] = &[
 /// Reads a `docutils.conf`; `file` names it in messages.
 pub(crate) fn read(text: &str, file: &str) -> Result<Conf, String> {
     let mut conf = Conf::default();
-    let defaults = serde_json::to_value(Settings::default()).map_err(|e| e.to_string())?;
+    let defaults = serde_json::to_value(defaults()).map_err(|e| e.to_string())?;
     let Value::Object(defaults) = defaults else {
         return Err("settings are not a map".into());
     };
@@ -113,7 +122,7 @@ pub(crate) fn read(text: &str, file: &str) -> Result<Conf, String> {
         last = Some(name.clone());
         values.insert(name, Value::String(value));
     }
-    let mut typed = Map::new();
+    let mut typed = defaults.clone();
     for (name, value) in values {
         let Value::String(value) = value else {
             continue;
@@ -197,6 +206,28 @@ mod tests {
             "{:?}",
             conf.warnings
         );
+    }
+
+    #[test]
+    fn task_lists_on_unless_turned_off() {
+        assert!(Conf::default().settings.task_lists);
+        let conf = read(
+            "[general]
+tab_width: 4
+",
+            "docutils.conf",
+        )
+        .unwrap();
+        assert!(conf.settings.task_lists);
+        let conf = read(
+            "[restructuredtext parser]
+task-lists: no
+",
+            "docutils.conf",
+        )
+        .unwrap();
+        assert!(!conf.settings.task_lists);
+        assert!(conf.warnings.is_empty());
     }
 
     #[test]

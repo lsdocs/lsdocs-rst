@@ -47,7 +47,8 @@
 //! settings lsdocs-rst implements (`tab_width`, `pep_references`,
 //! `raw_enabled`, ...) and `file_insertion_enabled`. Other sections are
 //! skipped; docutils settings lsdocs-rst does not implement are reported
-//! once, as a warning.
+//! once, as a warning. Task lists (`- [ ] item`, `- [x] item`; lsdocs-rst's
+//! `task_lists`) are on unless `task_lists: no` turns them off.
 
 mod conf;
 mod convert;
@@ -110,7 +111,7 @@ fn configured(settings: &Value) -> (lsdocs_rst::Settings, bool) {
     let rst = settings
         .get("settings")
         .and_then(|s| serde_json::from_value(s.clone()).ok())
-        .unwrap_or_default();
+        .unwrap_or_else(conf::defaults);
     let files = settings
         .get("file_insertion_enabled")
         .and_then(Value::as_bool)
@@ -144,16 +145,10 @@ impl Parser for Rst {
 }
 
 /// The `lsdocs-rst` parser the plugin uses: docutils' transforms without
-/// the document title, unknown directives kept, and the directives and
+/// the document title, unknown directives kept, task lists on, and the directives and
 /// roles of `syntax`; with `source_dir`, files are read from it.
 pub fn rst_parser(source: &str, source_dir: Option<&str>, syntax: &Syntax) -> lsdocs_rst::Parser {
-    rst_parser_recording(
-        source,
-        source_dir,
-        syntax,
-        None,
-        lsdocs_rst::Settings::default(),
-    )
+    rst_parser_recording(source, source_dir, syntax, None, conf::defaults())
 }
 
 /// [`rst_parser`], noting every file directives read (or look for) in
@@ -216,13 +211,7 @@ pub fn parse_with_dependencies(
     source_dir: Option<&str>,
     syntax: &Syntax,
 ) -> ParseResult {
-    parse_configured(
-        source,
-        text,
-        source_dir,
-        syntax,
-        lsdocs_rst::Settings::default(),
-    )
+    parse_configured(source, text, source_dir, syntax, conf::defaults())
 }
 
 /// [`parse_with_dependencies`] with docutils settings.

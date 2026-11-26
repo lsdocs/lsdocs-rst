@@ -265,7 +265,10 @@ impl Cx<'_> {
                     .map(|item| {
                         ListItem {
                             span: span(item.span),
-                            checked: None,
+                            checked: match item.attributes.get("checked") {
+                                Some(AttrValue::Bool(b)) => Some(*b),
+                                _ => None,
+                            },
                             children: self.blocks(&item.children, depth),
                         }
                         .into()
