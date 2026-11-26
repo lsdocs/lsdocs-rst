@@ -15,7 +15,7 @@ repository = "https://github.com/lsdocs/lsdocs-rst"
 
 [workspace.dependencies]
 lsdocs-plugin-sdk = { git = "https://github.com/lsdocs/lsdocs-plugin-sdk", branch = "main", version = "0.1.0" }
-lsdocs-rst = { path = "crates/rst", version = "0.1.0" }
+lsdocs-rst = { path = "crates/rst", version = "0.2.0" }
 
 # The Lua version (lua54, luajit) and module/vendored are chosen by
 # bindings/lua's features.

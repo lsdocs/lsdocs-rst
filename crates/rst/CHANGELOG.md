@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/lsdocs/lsdocs-rst/compare/lsdocs-rst/v0.1.0...lsdocs-rst/v0.2.0) - 2026-11-26
+
+### Added
+
+- *(rst)* task lists, on by default in the lsdocs plugin ([#46](https://github.com/lsdocs/lsdocs-rst/pull/46))
+
+### Fixed
+
+- *(rst)* conformance fixes for Unicode digits, case folding and figwidth URIs ([#45](https://github.com/lsdocs/lsdocs-rst/pull/45))
+
 ## [0.1.0](https://github.com/lsdocs/lsdocs-rst/releases/tag/lsdocs-rst/v0.1.0) - 2026-11-22
 
 ### Added
